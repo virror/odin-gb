@@ -1,0 +1,5 @@
+/source.exe
+/Bootloader.bin
+/source/*.cs
+/tests/*
+/roms/*

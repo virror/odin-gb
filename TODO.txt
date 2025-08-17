@@ -1,0 +1,10 @@
+-Sprites priority handling
+-Writing to STAT trigger interrupts?
+-Mask STAT bit 7
+-Proper window handling
+
+-Run all tests and verify codes
+-Sound
+
+-Save/Load states
+-Color support
