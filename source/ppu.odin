@@ -17,15 +17,14 @@ ppu_reset :: proc() {
 }
 
 ppu_step :: proc(cycle: u16) -> bool {
-    lcdc := bus_read8(u16(IO.LCDC))
-    stat := bus_read8(u16(IO.STAT))
+    lcdc := bus_get(u16(IO.LCDC))
     status := bus_get(u16(IO.STAT))
-    ly := bus_read8(u16(IO.LY))
+    ly := bus_get(u16(IO.LY))
     reqIntr: bool
     mode := status & 3
     
     if(bit_test(lcdc, 7) == false) {	//LCD is off, dont draw, reset display
-        ppu_reset_LCD(stat)
+        ppu_reset_LCD(status)
         return false
     }
     scanlineCounter -= i32(cycle)
@@ -40,7 +39,6 @@ ppu_step :: proc(cycle: u16) -> bool {
                 reqIntr = bit_test(status, 4)
                 iFlags := bus_get(u16(IO.IF))
                 bus_write(u16(IO.IF), bit_set1(iFlags, 0))
-                //fmt.println("Draw")
                 return true // Draw screen
             } else {		// -> Mode 2 - OAM
                 status = bit_clear(status, 0)
@@ -123,68 +121,68 @@ ppu_draw_scanline :: proc(lcdc: u8, ly: u8) {
 }
 
 ppu_drawSprites :: proc(lcdc: u8, ly: u8) {
-    /*for(int i = 39; i >= 0; i--)
-    {
-        int yPos = memory.Read(0xFE00 + (i * 4));
-        byte index = (byte)(memory.Read(0xFE00 + (i * 4 + 2)));
+    for i :i16= 39; i >= 0; i -= 1 {
+        yPos := bus_read8(0xFE00 + u16(i * 4))
+        index := bus_read8(0xFE00 + u16(i * 4 + 2))
 
-        if(yPos == 0 || yPos >= 160)
-            continue;
-
-        yPos -= 16;
-        byte ySize;
-        if(Bit.Test(lcdc, 2))
-        {
-            index = Bit.Clear(index, 0);
-            ySize = 16;
+        if(yPos == 0 || yPos >= 160) {
+            continue
         }
-        else
-            ySize = 8;
 
-        if(yPos <= ly && (yPos + ySize) > ly)
-        {
-            int xPos = memory.Read(0xFE00 + (i * 4 + 1)) - 8;
-            byte flags = memory.Read(0xFE00 + (i * 4 + 3));
-            bool xFlip = Bit.Test(flags, 5);
-            bool yFlip = Bit.Test(flags, 6);
-            int line = ly - yPos;
-            if(yFlip)
-                line = ((ySize - 1) - line);
+        yPos -= 16
+        ySize: u8
+        if(bit_test(lcdc, 2)) {
+            index = bit_clear(index, 0)
+            ySize = 16
+        } else {
+            ySize = 8
+        }
+
+        if(yPos <= ly && (yPos + ySize) > ly) {
+            xPos := bus_read8(0xFE00 + u16(i * 4 + 1)) - 8
+            flags := bus_read8(0xFE00 + u16(i * 4 + 3))
+            xFlip := bit_test(flags, 5)
+            yFlip := bit_test(flags, 6)
+            line := ly - yPos
+            if(yFlip) {
+                line = ((ySize - 1) - line)
+            }
             
-            ushort address = (ushort)(0x8000 + (index * 16) + (line * 2));
-            byte line1 = memory.Read(address);
-            byte line2 = memory.Read(address + 1);
+            address := 0x8000 + u16(index * 16) + u16(line * 2)
+            line1 := bus_read8(address)
+            line2 := bus_read8(address + 1)
         
-            for(int j = 7; j >= 0; j--)
-            {
-                int colorBit = j;
-                if(xFlip)
-                    colorBit = (7 - colorBit);
+            for j :u8= 7; j == 0; j -= 1 {
+                colorBit := j
+                if(xFlip) {
+                    colorBit = (7 - colorBit)
+                }
 
-                byte colorNum = Bit.Get(line2, (byte)colorBit);
-                colorNum <<= 1;
-                colorNum |= Bit.Get(line1, (byte)colorBit);
+                colorNum := bit_get(line2, colorBit)
+                colorNum <<= 1
+                colorNum |= bit_get(line1, colorBit)
 
-                int xPix = 0 - j;
-                xPix += 7;
-                int pixPos = xPix + xPos;
+                xPix := 0 - j
+                xPix += 7
+                pixPos := xPix + xPos
 
-                if(pixPos >= 160 || pixPos < 0)
-                    continue;
+                if(pixPos >= 160 || pixPos < 0) {
+                    continue
+                }
 
-                if(Bit.Test(flags, 7) && screenRow[pixPos] != 0)
-                    continue;
+                if(bit_test(flags, 7) && screenRow[pixPos] != 0) {
+                    continue
+                }
+                if(colorNum == 0) {
+                    continue
+                }
 
-                if(colorNum == 0)
-                    continue;
-
-                ushort obp = (ushort)(Bit.Test(flags, 4)?IO.OBP1:IO.OBP0);
-                Color color = GetColor(colorNum, obp);
-                
-                screenRow[pixPos] = (byte)(Bit.Test(flags, 4)?colorNum + 8:colorNum + 4);
+                //obp := (bit_test(flags, 4)?IO.OBP1:IO.OBP0)
+                //color := ppu_get_color(colorNum, obp)
+                screenRow[pixPos] = (bit_test(flags, 4)?colorNum + 8:colorNum + 4)
             }
         }
-    }*/
+    }
 }
 
 ppu_draw_background :: proc(lcdc: u8, ly: u8) {
