@@ -2,6 +2,32 @@ package main
 
 import "core:fmt"
 
+Mode :: enum u8 {
+    HBlank = 0,
+    VBlank = 1,
+    OAM = 2,
+    Draw = 3,
+}
+
+IRQ :: bit_field u8 {
+    VBlank: bool    | 1,
+    lcdc: bool      | 1,
+    Timer: bool     | 1,
+    Serial: bool    | 1,
+    Joypad: bool    | 1,
+    unused: u8      | 3,
+}
+
+Status :: bit_field u8 {
+    mode: Mode      | 2,
+    lyc_ly: bool    | 1,
+    hblank: bool    | 1,
+    vblank: bool    | 1,
+    oam: bool       | 1,
+    lyc: bool       | 1,
+    unused: bool    | 1,
+}
+
 scanlineCounter :i32= 204
 screenRow: [160]u8
 screen_buffer: [WIN_WIDTH * WIN_HEIGHT]u16
@@ -13,10 +39,9 @@ ppu_reset :: proc() {
 ppu_step :: proc(cycle: u16) -> bool {
     retval: bool
     lcdc := bus_get(u16(IO.LCDC))
-    status := bus_get(u16(IO.STAT))
+    status := Status(bus_get(u16(IO.STAT)))
+    iFlags := IRQ(bus_get(u16(IO.IF)))
     ly := bus_get(u16(IO.LY))
-    reqIntr: bool
-    mode := status & 3
     
     if(bit_test(lcdc, 7) == false) {	//LCD is off, dont draw, reset display
         ppu_reset_LCD(status)
@@ -24,84 +49,70 @@ ppu_step :: proc(cycle: u16) -> bool {
     }
     scanlineCounter -= i32(cycle)
 
-    switch mode {
-    case 0:		// H-blank
+    switch status.mode {
+    case .HBlank:		// H-blank
         if(scanlineCounter < 0) {
             scanlineCounter += 456
             if(ly >= 144) {	// -> Mode 1 - V-blank
-                status = bit_set1(status, 0)
-                status = bit_clear(status, 1)
-                reqIntr = bit_test(status, 4)
-                iFlags := bus_get(u16(IO.IF))
-                bus_write(u16(IO.IF), bit_set1(iFlags, 0))
+                status.mode = .VBlank
+                iFlags.lcdc = status.vblank
+                iFlags.VBlank = true
                 retval = true // Draw screen
             } else {		// -> Mode 2 - OAM
-                status = bit_clear(status, 0)
-                status = bit_set1(status, 1)
-                reqIntr = bit_test(status, 5)
+                status.mode = .OAM
+                iFlags.lcdc = status.oam
             }
             ly += 1
-            ppu_set_ly(ly)
+            ppu_set_ly(ly, &status, &iFlags)
         }
         break
-    case 1:		// V-blank
+    case .VBlank:		// V-blank
         if(scanlineCounter < 0) {
             scanlineCounter += 456
             ly += 1
             if(ly > 153) {	// -> Mode 2 - OAM
                 ly = 0
-                status = bit_clear(status, 0)
-                status = bit_set1(status, 1)
-                reqIntr = bit_test(status, 5)
+                status.mode = .OAM
+                iFlags.lcdc = status.oam
             }
-            ppu_set_ly(ly)
+            ppu_set_ly(ly, &status, &iFlags)
         }
         break
-    case 2:		// OAM
+    case .OAM:		// OAM
         if(scanlineCounter < 376) {	// -> Mode 3 - OAM + RAM
-            status = bit_set1(status, 1)
-            status = bit_set1(status, 0)
+            status.mode = .Draw
         }
         break
-    case 3:		// OAM + RAM
+    case .Draw:		// OAM + RAM
         if(scanlineCounter < 204) {	// -> Mode 0 - H-blank
-            status = bit_clear(status, 1)
-            status = bit_clear(status, 0)
+            status.mode = .HBlank
             ppu_draw_scanline(lcdc, ly)
-            reqIntr = bit_test(status, 3)
+            iFlags.lcdc = status.hblank
         }
         break
     }
 
-    if(reqIntr) {
-        iFlags := bus_get(u16(IO.IF))
-        bus_write(u16(IO.IF), bit_set1(iFlags, 1))
-    }
-    bus_write(u16(IO.STAT), status)
+    bus_write(u16(IO.STAT), u8(status))
+    bus_write(u16(IO.IF), u8(iFlags))
     return retval
 }
 
-ppu_reset_LCD :: proc(stat: u8) {
+ppu_reset_LCD :: proc(stat: Status) {
     scanlineCounter = 204
     bus_set(u16(IO.LY), 0)
-    stat1 := stat & 0xFC
+    stat1 := u8(stat) & 0xFC
     bus_write(u16(IO.STAT), stat1)
 }
 
-ppu_set_ly :: proc(ly: u8) {
-    status := bus_get(u16(IO.STAT))
-
+ppu_set_ly :: proc(ly: u8, status: ^Status, iflags: ^IRQ) {
     if (ly == bus_get(u16(IO.LYC))) {
-        status = bit_set1(status, 2)
-        if(bit_test(status, 6)) {
-            iFlags := bus_get(u16(IO.IF))
-            bus_write(u16(IO.IF), bit_set1(iFlags, 1))
+        status.lyc_ly = true
+        if(status.lyc) {
+            iflags.lcdc = true
         }
     } else {
-        status = bit_clear(status, 2)    
+        status.lyc_ly = false
     }
-
-    bus_set(u16(IO.STAT), status)
     bus_set(u16(IO.LY), ly)
 }
 
