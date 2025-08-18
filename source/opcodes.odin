@@ -775,24 +775,13 @@ OCE5 :: proc() {
 OCE8 :: proc() {
     orgSP := SP
     par := i16(i8(bus_read8(PC)))
-    /*fmt.println("----")
-    fmt.println(par)
-    fmt.println(orgSP)*/
     reg.F.Z = false
     reg.F.N = false
 
     SP = u16(i16(SP) + par)
-    if(par > 0) {
-        //fmt.println(((orgSP & 0xF) + (u16(par) & 0xF)))
-        reg.F.H = bool(((orgSP & 0xF) + (u16(par) & 0xF)) & 0x10)
-        _, ovf := intrinsics.overflow_add(u8(orgSP), par)
-        reg.F.C = ovf//((orgSP & 0x80) & (u16(par) & 0x80)) > 0
-    } else {
-        reg.F.H = bool(((orgSP & 0xF) + (u16(par) & 0xF)) & 0x10)
-        reg.F.C = u16(par) > orgSP
-    }
-    
-    
+    reg.F.H = bool(((orgSP & 0xF) + (u16(par) & 0xF)) & 0x10)
+    _, ovf := intrinsics.overflow_add(u8(orgSP), par)
+    reg.F.C = ovf
     PC += 1
 }
 
@@ -1390,141 +1379,141 @@ OCFF :: proc() {
 }
 
 ADCx :: proc(index: Index) {
-        value := getReg(index)
-        flag := u8(reg.F.C)
-        par := (value + flag)
-        newValue := (reg.A + par)
-        reg.F.Z = newValue == 0
-        reg.F.N = false
-        cpu_setHalfAdd8(value, flag)
-        cpu_setCarryAdd8(value, flag)
-        if(!reg.F.H) {
-            cpu_setHalfAdd8(reg.A, par)
-        }
-        if(!reg.F.C) {
-            cpu_setCarryAdd8(reg.A, par)
-        }
-        reg.A = newValue
+    value := getReg(index)
+    flag := u8(reg.F.C)
+    par := (value + flag)
+    newValue := (reg.A + par)
+    reg.F.Z = newValue == 0
+    reg.F.N = false
+    cpu_setHalfAdd8(value, flag)
+    cpu_setCarryAdd8(value, flag)
+    if(!reg.F.H) {
+        cpu_setHalfAdd8(reg.A, par)
+    }
+    if(!reg.F.C) {
+        cpu_setCarryAdd8(reg.A, par)
+    }
+    reg.A = newValue
 }
 
 //SBC A, x
 SBCx :: proc(index: Index) {
-        value := getReg(index)
-        flag := u8(reg.F.C)
-        par := (value + flag)
-        newValue := (reg.A - par)
-        reg.F.Z = newValue == 0
-        reg.F.N = true
-        cpu_setHalfAdd8(value, flag)
-        cpu_setCarryAdd8(value, flag)
-        if(!reg.F.H) {
-            cpu_setHalfSub8(reg.A, par)
-        }
-        if(!reg.F.C) {
-            cpu_setCarrySub8(reg.A, par)
-        }
-        reg.A = newValue
+    value := getReg(index)
+    flag := u8(reg.F.C)
+    par := (value + flag)
+    newValue := (reg.A - par)
+    reg.F.Z = newValue == 0
+    reg.F.N = true
+    cpu_setHalfAdd8(value, flag)
+    cpu_setCarryAdd8(value, flag)
+    if(!reg.F.H) {
+        cpu_setHalfSub8(reg.A, par)
+    }
+    if(!reg.F.C) {
+        cpu_setCarrySub8(reg.A, par)
+    }
+    reg.A = newValue
 }
 
 //AND A, x
 ANDx :: proc(index: Index) {
-        reg.A &= getReg(index)
-        reg.F.Z = reg.A == 0
-        reg.F.N = false
-        reg.F.H = true
-        reg.F.C = false
+    reg.A &= getReg(index)
+    reg.F.Z = reg.A == 0
+    reg.F.N = false
+    reg.F.H = true
+    reg.F.C = false
 }
 
 //OR A, x
 ORx :: proc(index: Index) {
-        reg.A |= getReg(index)
-        reg.F.Z = reg.A == 0
-        reg.F.N = false
-        reg.F.H = false
-        reg.F.C = false
+    reg.A |= getReg(index)
+    reg.F.Z = reg.A == 0
+    reg.F.N = false
+    reg.F.H = false
+    reg.F.C = false
 }
 
 //XOR A, x
 XORx :: proc(index: Index) {
-        reg.A ~= getReg(index)
-        reg.F.Z = reg.A == 0
-        reg.F.N = false
-        reg.F.H = false
-        reg.F.C = false
+    reg.A ~= getReg(index)
+    reg.F.Z = reg.A == 0
+    reg.F.N = false
+    reg.F.H = false
+    reg.F.C = false
 }
 
 //CP A, x
 CPx :: proc(index: Index) {
-        par := getReg(index)
-        newValue := (reg.A - par)
-        reg.F.Z = newValue == 0
-        reg.F.N = true
-        cpu_setHalfSub8(reg.A, par)
-        cpu_setCarrySub8(reg.A, par)
+    par := getReg(index)
+    newValue := (reg.A - par)
+    reg.F.Z = newValue == 0
+    reg.F.N = true
+    cpu_setHalfSub8(reg.A, par)
+    cpu_setCarrySub8(reg.A, par)
 }
 
 //LD x, n
 LDxn :: proc(index: Index) {
-        setReg(index, bus_read8(PC))
-        PC += 1
+    setReg(index, bus_read8(PC))
+    PC += 1
 }
 
 //LD x, x
 LDxx :: proc(index1: Index, index2: Index) {
-        setReg(index1, getReg(index2))
+    setReg(index1, getReg(index2))
 }
 
 //LD HL, x
 LDHLx :: proc(index: Index) {
-        bus_write(reg.HL, getReg(index))
+    bus_write(reg.HL, getReg(index))
 }
 
 //INC x
 INCx :: proc(index: Index) {
-        value := getReg(index)
-        newValue := value + 1
-        setReg(index, newValue)
-        reg.F.Z = newValue == 0
-        reg.F.N = false
-        cpu_setHalfAdd8(value, 1)
+    value := getReg(index)
+    newValue := value + 1
+    setReg(index, newValue)
+    reg.F.Z = newValue == 0
+    reg.F.N = false
+    cpu_setHalfAdd8(value, 1)
 }
 
 //DEC x
 DECx :: proc(index: Index) {
-        value := getReg(index)
-        newValue := value - 1
-        setReg(index, newValue)
-        reg.F.Z = newValue == 0
-        reg.F.N = true
-        cpu_setHalfSub8(value, 1)
+    value := getReg(index)
+    newValue := value - 1
+    setReg(index, newValue)
+    reg.F.Z = newValue == 0
+    reg.F.N = true
+    cpu_setHalfSub8(value, 1)
 }
 
 //ADD A, x
 ADDx :: proc(index: Index) {
-        par := getReg(index)
-        newValue := reg.A + par
-        reg.F.Z = newValue == 0
-        reg.F.N = false
-        cpu_setHalfAdd8(reg.A, par)
-        cpu_setCarryAdd8(reg.A, par)
-        reg.A = newValue
+    par := getReg(index)
+    newValue := reg.A + par
+    reg.F.Z = newValue == 0
+    reg.F.N = false
+    cpu_setHalfAdd8(reg.A, par)
+    cpu_setCarryAdd8(reg.A, par)
+    reg.A = newValue
 }
 
 //SUB A, x
 SUBx :: proc(index: Index) {
-        par := getReg(index)
-        newValue := reg.A - par
-        reg.F.Z = newValue == 0
-        reg.F.N = true
-        cpu_setHalfSub8(reg.A, par)
-        cpu_setCarrySub8(reg.A, par)
-        reg.A = newValue
+    par := getReg(index)
+    newValue := reg.A - par
+    reg.F.Z = newValue == 0
+    reg.F.N = true
+    cpu_setHalfSub8(reg.A, par)
+    cpu_setCarrySub8(reg.A, par)
+    reg.A = newValue
 }
 
 //RST
 RST :: proc(address: u16) {
-        Push(PC)
-        PC = address
+    Push(PC)
+    PC = address
 }
 
 Push :: proc(value: u16) {

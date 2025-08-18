@@ -102,23 +102,26 @@ bus_init :: proc() {
 }
 
 bus_read8 :: proc(address: u16) -> u8 {
-    //return bus_get(address)
-    /*if address == breakReadAddress)
-        Debug.Break()*/
+    when TEST_ENABLE {
+        return bus_get(address)
+    } else {
+        /*if address == breakReadAddress)
+            Debug.Break()*/
 
-    if address >= 0xA000 && address < 0xC000 {	//RAM
-        if ramEnabled && (ramSize == 1 && address < 0xA800) || ramSize > 1 {
-            return ramBanks[ramBankNr][address - 0xA000]
-        } else {
-            return 0xFF
+        if address >= 0xA000 && address < 0xC000 {	//RAM
+            if ramEnabled && (ramSize == 1 && address < 0xA800) || ramSize > 1 {
+                return ramBanks[ramBankNr][address - 0xA000]
+            } else {
+                return 0xFF
+            }
         }
-    }
 
-    switch (address) {
-    case 0xFF0F:
-        return (byte)(memory[address] | 0xE0)
-    case:
-        return memory[address]
+        switch (address) {
+        case 0xFF0F:
+            return (byte)(memory[address] | 0xE0)
+        case:
+            return memory[address]
+        }
     }
 }
 
@@ -127,58 +130,61 @@ bus_read16 :: proc(address: u16) -> u16 {
 }
 
 bus_write :: proc(address: u16, data: u8) {
-    //bus_set(address, data)
-    /*if address == breakWriteAddress {
-        fmt.println("a")
-    }*/
-
-    if address < 0x8000 {	//ROM
-        BankSwitch(address, data)
-    } else if address >= 0xA000 && address < 0xC000 {	//RAM
-        if ramEnabled {
-            if (ramSize == 1 && address < 0xA800) || ramSize > 1 {
-                ramBanks[ramBankNr][address - 0xA000] = data
-            }
-        }
-    } else if address >= 0xE000 && address < 0xFE00 {
-        memory[address] = data
-        bus_write(u16(address - 0x2000), data)
-    } else if address >= 0xFEA0 && address <= 0xFEFF	{ //Restricted memory
-        return
+    when TEST_ENABLE {
+        bus_set(address, data)
     } else {
-        #partial switch IO(address)
-        {
-        case IO.P1:
-            if bit_test(data, 4) {
-                memory[address] = keyState
+        /*if address == breakWriteAddress {
+            fmt.println("a")
+        }*/
+
+        if address < 0x8000 {	//ROM
+            BankSwitch(address, data)
+        } else if address >= 0xA000 && address < 0xC000 {	//RAM
+            if ramEnabled {
+                if (ramSize == 1 && address < 0xA800) || ramSize > 1 {
+                    ramBanks[ramBankNr][address - 0xA000] = data
+                }
             }
-            if bit_test(data, 5) {
-                memory[address] = keyState >> 4
-            }
-            break
-        case IO.SB:
-            /*if serialDebug {
-                fmt.print(data)
-            }*/
-            break
-        case IO.LY:
-            break
-        case IO.DIV:
-            memory[address] = 0
-            break
-        case IO.DMA:
-            bus_dma_transfer(data)
-            break
-        case IO.IE:
-            fmt.println(data)
-            break
-        case IO.BL:
-            //Array.Copy(romBanks[0], memory, 0x4000)
-            //mem.copy(&romBanks[0], &memory[startAddr], 0x4000)
-            break
-        case:
+        } else if address >= 0xE000 && address < 0xFE00 {
             memory[address] = data
-            break
+            bus_write(u16(address - 0x2000), data)
+        } else if address >= 0xFEA0 && address <= 0xFEFF	{ //Restricted memory
+            return
+        } else {
+            #partial switch IO(address)
+            {
+            case IO.P1:
+                if bit_test(data, 4) {
+                    memory[address] = keyState
+                }
+                if bit_test(data, 5) {
+                    memory[address] = keyState >> 4
+                }
+                break
+            case IO.SB:
+                /*if serialDebug {
+                    fmt.print(data)
+                }*/
+                break
+            case IO.LY:
+                break
+            case IO.DIV:
+                memory[address] = 0
+                break
+            case IO.DMA:
+                bus_dma_transfer(data)
+                break
+            /*case IO.IF:
+                fmt.println(data)
+                break*/
+            case IO.BL:
+                //Array.Copy(romBanks[0], memory, 0x4000)
+                //mem.copy(&romBanks[0], &memory[startAddr], 0x4000)
+                break
+            case:
+                memory[address] = data
+                break
+            }
         }
     }
 }
@@ -217,8 +223,8 @@ LoadROM :: proc(rom: string) {
     }*/
     //Array.Copy(romBanks[0], memory, 0x4000)
     _, _ = os.seek(file, 0x100, 1)
-    n, err2 := os.read_at_least(file, memory[0x100:], 0x4000)
-    fmt.println(n)
+    _, err2 := os.read_at_least(file, memory[0x100:], 0x4000)
+    //fmt.println(n)
     assert(err2 == nil, "Failed to read rom data")
     //Array.Copy(romBanks[1], 0, memory, 0x4000, 0x4000)
     //mbc = Mbc(memory[0x0147])

@@ -92,7 +92,7 @@ cpu_handle_irq :: proc() {
                     SP -= 1
                     bus_set(SP, u8(PC))
                     bus_set(u16(IO.IF), bit_clear(iFlags, i))
-                    PC = 0x0040 + u16(i) * 0x8
+                    PC = 0x0040 + u16(i) * 0x8 //TODO: Must fix for multiple interrupts, lowest priority first
                     cycleMod += 20
                 }
             }
