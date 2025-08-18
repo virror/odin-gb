@@ -37,7 +37,7 @@ cpu_step :: proc() -> u16 {
     op: Opcode
     cycleMod = 0
     if !halt {
-        op = cpu_get_opcode(false)
+        op, _ = cpu_get_opcode(false)
         PC += 1
         if (EI) {
             interruptEnabled = true
@@ -57,7 +57,7 @@ cpu_step :: proc() -> u16 {
     return u16(op.cycles + cycleMod)
 }
 
-cpu_get_opcode :: proc(debug: bool) -> Opcode {
+cpu_get_opcode :: proc(debug: bool) -> (Opcode, u8) {
     op: Opcode
     opcode := bus_get(PC)
 
@@ -74,7 +74,7 @@ cpu_get_opcode :: proc(debug: bool) -> Opcode {
     if op.func == nil {
         fmt.println(opcode)
     }
-    return op
+    return op, opcode
 }
 
 cpu_handle_irq :: proc() {

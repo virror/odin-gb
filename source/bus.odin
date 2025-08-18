@@ -118,7 +118,7 @@ bus_read8 :: proc(address: u16) -> u8 {
 
         switch (address) {
         case 0xFF0F:
-            return (byte)(memory[address] | 0xE0)
+            return memory[address] | 0xE0
         case:
             return memory[address]
         }
@@ -126,7 +126,7 @@ bus_read8 :: proc(address: u16) -> u8 {
 }
 
 bus_read16 :: proc(address: u16) -> u16 {
-	return (u16(bus_get(address + 1)) << 8) + u16(bus_get(address))
+	return (u16(bus_read8(address + 1)) << 8) + u16(bus_read8(address))
 }
 
 bus_write :: proc(address: u16, data: u8) {
@@ -174,12 +174,9 @@ bus_write :: proc(address: u16, data: u8) {
             case IO.DMA:
                 bus_dma_transfer(data)
                 break
-            /*case IO.IF:
-                fmt.println(data)
-                break*/
             case IO.BL:
                 //Array.Copy(romBanks[0], memory, 0x4000)
-                //mem.copy(&romBanks[0], &memory[startAddr], 0x4000)
+                //mem.copy(&romBanks[0], &memory[0], 0x4000)
                 break
             case:
                 memory[address] = data

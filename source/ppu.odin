@@ -8,15 +8,10 @@ screen_buffer: [WIN_WIDTH * WIN_HEIGHT]u16
 
 ppu_reset :: proc() {
     scanlineCounter = 204
-    /*apa :[]Color= screen.GetPixels()
-    for i :u32= 0 i < apa.Length i += 1 {
-        apa[i] = Color.white
-    }
-    screen.SetPixels(apa)
-    screen.Apply()*/
 }
 
 ppu_step :: proc(cycle: u16) -> bool {
+    retval: bool
     lcdc := bus_get(u16(IO.LCDC))
     status := bus_get(u16(IO.STAT))
     ly := bus_get(u16(IO.LY))
@@ -39,7 +34,7 @@ ppu_step :: proc(cycle: u16) -> bool {
                 reqIntr = bit_test(status, 4)
                 iFlags := bus_get(u16(IO.IF))
                 bus_write(u16(IO.IF), bit_set1(iFlags, 0))
-                return true // Draw screen
+                retval = true // Draw screen
             } else {		// -> Mode 2 - OAM
                 status = bit_clear(status, 0)
                 status = bit_set1(status, 1)
@@ -83,7 +78,7 @@ ppu_step :: proc(cycle: u16) -> bool {
         bus_write(u16(IO.IF), bit_set1(iFlags, 1))
     }
     bus_write(u16(IO.STAT), status)
-    return false
+    return retval
 }
 
 ppu_reset_LCD :: proc(stat: u8) {
@@ -189,7 +184,7 @@ ppu_draw_background :: proc(lcdc: u8, ly: u8) {
     scy := bus_read8(u16(IO.SCY))
     scx := bus_read8(u16(IO.SCX))
     wy := bus_read8(u16(IO.WY))
-    wx := bus_read8(u16(IO.WX)) - 7
+    wx := i16(i8(bus_read8(u16(IO.WX)) - 7))
     yPos: u8
     backMem: u16
     window: bool
@@ -228,17 +223,16 @@ ppu_draw_background :: proc(lcdc: u8, ly: u8) {
     for pixel :u8= 0; pixel < 160; pixel += 1 {
         xPos := scx + pixel
         if (window) {
-            if (pixel >= wx) {
-                xPos = pixel - wx
+            if (i16(pixel) >= wx) {
+                xPos = u8(i16(pixel) - wx)
             }
         } 
 
         tileCol := u16(xPos / 8)
         tileAddress := backMem + tileRow + tileCol
-        tileNum: u8
         tileLocation := tileData
 
-        tileNum = bus_read8(tileAddress)
+        tileNum := bus_read8(tileAddress)
         if(tileData == 0x8000) {
             tileLocation += u16(tileNum) * 16
         } else {

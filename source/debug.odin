@@ -32,8 +32,9 @@ debug_draw :: proc() {
 }
 
 debug_draw_op :: proc(opText: cstring, pc: u16, posX: i32, posY: i32) {
-    op := cpu_get_opcode(true)
-    debug_text(op.desc, posX, posY, {230, 230, 230, 230})
+    op, opcode := cpu_get_opcode(true)
+    line := fmt.caprintf("%x %s", opcode, op.desc)
+    debug_text(line, posX, posY, {230, 230, 230, 230})
 }
 
 debug_draw_reg :: proc(regText: cstring, reg: u16, posX: i32, posY: i32) {
