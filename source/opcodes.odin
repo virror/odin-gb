@@ -449,7 +449,7 @@ OC27 :: proc() {
             reg.A += 0x60
             reg.F.C = true
         }
-        if (reg.F.H || (reg.A & 0x0f) > 0x09) {
+        if (reg.F.H || (reg.A & 0x0F) > 0x09) {
             reg.A += 0x6
         }
     } else {  // after a subtraction, only adjust if (half-)carry occurred

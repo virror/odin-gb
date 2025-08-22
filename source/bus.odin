@@ -84,7 +84,7 @@ IO :: enum u16 {
 bootrom: [0x100]u8
 memory: [0x10000]u8
 romBanks: [512][0x4000]byte
-ramBanks: [][]byte
+ramBanks: [16][0x2000]byte
 ramEnabled: bool
 ramChanged: bool
 ramSize: u8
@@ -137,10 +137,9 @@ bus_write :: proc(address: u16, data: u8) {
                     ramBanks[ramBankNr][address - 0xA000] = data
                 }
             }
-        case 0xE000..<0xFE00:   //Echo RAM?
-            memory[address] = data
-            bus_write(u16(address - 0x2000), data)
-        case 0xFEA0..<0xFEFF:   //Restricted memory
+        case 0xE000..<0xFD00:   //Echo RAM
+            memory[address - 0x2000] = data
+        case 0xFEA0..<0xFF00:   //Restricted memory
             return
         case u16(IO.P1):
             if bit_test(data, 4) {
@@ -216,34 +215,24 @@ bus_get_rom_size :: proc(rom_size: u8) -> u16 {
 bus_load_ROM :: proc(rom: string) {
     file, err := os.open(rom, os.O_RDONLY)
     assert(err == nil, "Failed to open rom")
-    
+
+    //Load rambank 0 first so we can read the rom size
+    _, err2 := os.read(file, romBanks[0][:])
+    assert(err2 == nil, "Failed to read rom data")
+    mem.copy(&memory[0x100], &romBanks[0][0x100], 0x3900)
     bankSize := bus_get_rom_size(memory[0x0148])
 
-    for i :u16= 0; i < bankSize; i += 1 {
-        _, err2 := os.read(file, romBanks[i][:])
+    //Then load the rest once we know the size
+    for i :u16= 1; i < bankSize; i += 1 {
+        _, err2 = os.read(file, romBanks[i][:])
         assert(err2 == nil, "Failed to read rom data")
     }
     os.close(file)
     
-    mem.copy(&memory[0x100], &romBanks[0][0x100], 0x3900)
     mem.copy(&memory[0x4000], &romBanks[1][0], 0x4000)
     mbc = Mbc(memory[0x0147])
+    ramSize = memory[0x0149]
 
-    /*ramSize = memory[0x0149]
-    banks := math.pow(4, (ramSize - 2))
-    ramBanks = [banks][]byte
-    if(ramSize == 0 && (mbc == Mbc.MBC2_BAT || mbc == Mbc.MBC2)) {
-        ramBanks = byte[1][]
-        ramBanks[0] = byte[0x200]
-        ramSize = 1
-    }
-    else if(ramSize == 1) {
-        ramBanks[0] = new byte[0x800]
-    } else if(ramSize > 1) {
-        for i :u8= 0; i < banks; i += 1 {
-            ramBanks[i] = [0x2000]u8
-        }
-    }*/
     if(bus_has_battery()) {
         bus_load_ram()
     }
@@ -281,9 +270,8 @@ bus_rom_switch :: proc(address: u16, data: u8) {
         }
         break
     case Mbc.MBC2,
-            Mbc.MBC2_BAT:
-        data &= 0x0F
-        romBankNr = u16(data)
+         Mbc.MBC2_BAT:
+        romBankNr = u16(data & 0x0F)
         if(romBankNr == 0 || romBankNr == 0x20 || romBankNr == 0x40 || romBankNr == 0x60) {
             romBankNr += 1
         }
@@ -314,7 +302,7 @@ bus_rom_switch :: proc(address: u16, data: u8) {
         fmt.println("Unsupported MBC type: ", mbc)
         return
     }
-    mem.copy(&memory[0x4000], &romBanks[romBankNr], 0x4000)
+    mem.copy(&memory[0x4000], &romBanks[romBankNr][0], 0x4000)
 }
 
 bus_ram_switch :: proc(data: u8) {

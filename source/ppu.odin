@@ -149,7 +149,7 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
         yPos -= 16
         ySize: u8
         if(lcdc.obj_size) {
-            index = index & 0xE //Clear bit 0
+            index = index & 0xFE //Clear bit 0
             ySize = 16
         } else {
             ySize = 8
@@ -164,13 +164,13 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
             if(yFlip) {
                 line = (i16(ySize - 1) - line)
             }
-            
-            address := 0x8000 + u16(index * 16) + u16(line * 2)
+
+            address :u16= 0x8000 + u16(index * 16) + u16(line * 2)
             line1 := bus_read8(address)
             line2 := bus_read8(address + 1)
-        
-            for j :u8= 7; j == 0; j -= 1 {
-                colorBit := j
+
+            for j :i8= 7; j >= 0; j -= 1 {
+                colorBit := u8(j)
                 if(xFlip) {
                     colorBit = (7 - colorBit)
                 }
@@ -179,8 +179,8 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
                 colorNum <<= 1
                 colorNum |= bit_get(line1, colorBit)
 
-                xPix := 0 - j
-                xPix += 7
+                xPix :u8= 7
+                xPix -= u8(j)
                 pixPos := xPix + xPos
 
                 if(pixPos >= 160 || pixPos < 0) {

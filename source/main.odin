@@ -15,11 +15,7 @@ WIN_HEIGHT :: 144
 WIN_SCALE :: 2
 
 Vector2f :: distinct [2]f32
-Vector2u :: distinct [2]u32
-Vector2i :: distinct [2]i32
 Vector3f :: distinct [3]f32
-Vector3u :: distinct [3]u32
-Vector3i :: distinct [3]i32
 
 exit := false
 pause := true
