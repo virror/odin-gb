@@ -83,12 +83,12 @@ IO :: enum u16 {
 
 bootrom: [0x100]u8
 memory: [0x10000]u8
-romBanks: [][]byte
+romBanks: [512][0x4000]byte
 ramBanks: [][]byte
 ramEnabled: bool
 ramChanged: bool
 ramSize: u8
-romBankNr: u8
+romBankNr: u16
 ramBankNr: u8
 mbc: Mbc
 mbc1Mode: u8
@@ -105,8 +105,6 @@ bus_read8 :: proc(address: u16) -> u8 {
     when TEST_ENABLE {
         return bus_get(address)
     } else {
-        /*if address == breakReadAddress)
-            Debug.Break()*/
         switch (address) {
         case 0xA000..<0xC000:	//RAM
             if ramEnabled && (ramSize == 1 && address < 0xA800) || ramSize > 1 {
@@ -130,12 +128,9 @@ bus_write :: proc(address: u16, data: u8) {
     when TEST_ENABLE {
         bus_set(address, data)
     } else {
-        /*if address == breakWriteAddress {
-            fmt.println("a")
-        }*/
         switch (address) {
         case 0x0000..<0x8000:	//ROM
-            BankSwitch(address, data)
+            bus_bank_switch(address, data)
         case 0xA000..<0xC000:   //RAM
             if ramEnabled {
                 if (ramSize == 1 && address < 0xA800) || ramSize > 1 {
@@ -156,9 +151,9 @@ bus_write :: proc(address: u16, data: u8) {
             }
             break
         case u16(IO.SB):
-            /*if serialDebug {
-                fmt.print(data)
-            }*/
+            if SERIAL_DEBUG {
+                fmt.print(rune(data))
+            }
             break
         case u16(IO.LY):
             break
@@ -169,8 +164,7 @@ bus_write :: proc(address: u16, data: u8) {
             bus_dma_transfer(data)
             break
         case u16(IO.BL):
-            //Array.Copy(romBanks[0], memory, 0x4000)
-            //mem.copy(&romBanks[0], &memory[0], 0x4000)
+            mem.copy(&memory[0], &romBanks[0], 0x4000)
             break
         case:
             memory[address] = data
@@ -193,32 +187,47 @@ bus_dma_transfer :: proc(data: u8) {
     mem.copy(&memory[0xFE00], &memory[startAddr], 0xA0)
 }
 
-LoadROM :: proc(rom: string) {
-    //romName = Path.GetFileNameWithoutExtension(rom)
+bus_get_rom_size :: proc(rom_size: u8) -> u16 {
+    switch (rom_size) {
+    case 0: //32KB
+        return 2
+    case 1: //64KB
+        return 4
+    case 2: //128KB
+        return 8
+    case 3: //256KB
+        return 16
+    case 4: //512KB
+        return 32
+    case 5: //1MB
+        return 64
+    case 6: //2MB
+        return 128
+    case 7: //4MB
+        return 256
+    case 8: //8MB
+        return 2
+    case:
+        fmt.println("Unsupported ROM size: ", rom_size)
+        return 0x8000
+    }
+}
 
+bus_load_ROM :: proc(rom: string) {
     file, err := os.open(rom, os.O_RDONLY)
     assert(err == nil, "Failed to open rom")
     
-    //os.close(file)
-    
-    /*bankSize, _ := os.file_size(file)
-    bankSize /= 0x4000
-    romBanks := [bankSize]u8*/
+    bankSize := bus_get_rom_size(memory[0x0148])
 
-    /*for i :u8= 0; i < bankSize; i += 1 {
-        romBanks[i] = [0x4000]byte
-        //fs.Read(romBanks[i], 0, 0x4000)
-        _, err2 := os.read(file, memory[0:0x4000])
+    for i :u16= 0; i < bankSize; i += 1 {
+        _, err2 := os.read(file, romBanks[i][:])
         assert(err2 == nil, "Failed to read rom data")
-    }*/
-    //Array.Copy(romBanks[0], memory, 0x4000)
-    _, _ = os.seek(file, 0x100, 1)
-    _, err2 := os.read_at_least(file, memory[0x100:], 0x4000)
-    //fmt.println(n)
-    assert(err2 == nil, "Failed to read rom data")
-    //Array.Copy(romBanks[1], 0, memory, 0x4000, 0x4000)
-    //mbc = Mbc(memory[0x0147])
+    }
+    os.close(file)
     
+    mem.copy(&memory[0x100], &romBanks[0][0x100], 0x3900)
+    mem.copy(&memory[0x4000], &romBanks[1][0], 0x4000)
+    mbc = Mbc(memory[0x0147])
 
     /*ramSize = memory[0x0149]
     banks := math.pow(4, (ramSize - 2))
@@ -234,22 +243,21 @@ LoadROM :: proc(rom: string) {
         for i :u8= 0; i < banks; i += 1 {
             ramBanks[i] = [0x2000]u8
         }
-    }
-    if(bus_has_battery()) {
-        LoadRam()
     }*/
-    //Array.Copy(bootrom, memory, bootrom.Length)
+    if(bus_has_battery()) {
+        bus_load_ram()
+    }
 }
 
-BankSwitch :: proc(address: u16, data: u8) {
+bus_bank_switch :: proc(address: u16, data: u8) {
     switch(address) {
     case 0x0000..<0x2000:	//RAM Enable
         ramEnabled = ((data & 0x0F) == 0x0A)
         ramChanged = !ramEnabled
     case 0x2000..<0x4000:	//ROM Switch
-        ROMSwitch(address, data)
+        bus_rom_switch(address, data)
     case 0x4000..<0x6000:	//RAM Switch
-        RAMSwitch(data)
+        bus_ram_switch(data)
     case 0x6000..<0x8000:	//MBC1 Mode
         if(bit_test(data, 0)) {
             mbc1Mode = 1
@@ -259,56 +267,57 @@ BankSwitch :: proc(address: u16, data: u8) {
     }
 }
 
-ROMSwitch :: proc(address: u16, data: u8) {
-    /*switch (mbc)
-    {
-        case Mbc.MBC1:
-        case Mbc.MBC1_RAM:
-        case Mbc.MBC1_RAM_BAT:
-            data &= 0x1F;
-            romBankNr &= 0xE0;
-            romBankNr |= data;
-            if(romBankNr == 0 || romBankNr == 0x20 || romBankNr == 0x40 || romBankNr == 0x60)
-                romBankNr++;
-            Array.Copy(romBanks[romBankNr], 0, memory, 0x4000, 0x4000);
-            break;
-        case Mbc.MBC2:
-        case Mbc.MBC2_BAT:
-            data &= 0x0F;
-            romBankNr = data;
-            if(romBankNr == 0 || romBankNr == 0x20 || romBankNr == 0x40 || romBankNr == 0x60)
-                romBankNr++;
-            Array.Copy(romBanks[romBankNr], 0, memory, 0x4000, 0x4000);
-            break;
-        case Mbc.MBC3:
-        case Mbc.MBC3_RAM:
-        case Mbc.MBC3_RAM_BAT:
-        case Mbc.MBC3_TIM_BAT:
-        case Mbc.MBC3_TIM_RAM_BAT:
-            data &= 0x7F;
-            romBankNr = data;
-            if(romBankNr == 0)
-                romBankNr++;
-            Array.Copy(romBanks[romBankNr], 0, memory, 0x4000, 0x4000);
-            break;
-        case Mbc.MBC5:
-        case Mbc.MBC5_RAM:
-        case Mbc.MBC5_RAM_BAT:
-            if(address > 0x2000 && address < 0x2000)
-            {
-                romBankNr |= data;
-                Array.Copy(romBanks[romBankNr], 0, memory, 0x4000, 0x4000);
-            }
-            else
-            {
-                data &= 0x01;
-                romBankNr |= (ushort)(data << 8);
-            }
-            break;
-    }*/
+bus_rom_switch :: proc(address: u16, data: u8) {
+    data := data
+    #partial switch (mbc) {
+    case Mbc.MBC1,
+         Mbc.MBC1_RAM,
+         Mbc.MBC1_RAM_BAT:
+        data &= 0x1F
+        romBankNr &= 0xE0
+        romBankNr |= u16(data)
+        if(romBankNr == 0 || romBankNr == 0x20 || romBankNr == 0x40 || romBankNr == 0x60) {
+            romBankNr += 1
+        }
+        break
+    case Mbc.MBC2,
+            Mbc.MBC2_BAT:
+        data &= 0x0F
+        romBankNr = u16(data)
+        if(romBankNr == 0 || romBankNr == 0x20 || romBankNr == 0x40 || romBankNr == 0x60) {
+            romBankNr += 1
+        }
+        break
+    case Mbc.MBC3,
+         Mbc.MBC3_RAM,
+         Mbc.MBC3_RAM_BAT,
+         Mbc.MBC3_TIM_BAT,
+         Mbc.MBC3_TIM_RAM_BAT:
+        data &= 0x7F
+        romBankNr = u16(data)
+        if(romBankNr == 0) {
+            romBankNr += 1
+        }
+        break
+    case Mbc.MBC5,
+         Mbc.MBC5_RAM,
+         Mbc.MBC5_RAM_BAT:
+        if(address > 0x2000 && address < 0x2000) {
+            romBankNr |= u16(data)
+        } else {
+            data &= 0x01
+            romBankNr |= (u16(data) << 8)
+            return
+        }
+        break
+    case:
+        fmt.println("Unsupported MBC type: ", mbc)
+        return
+    }
+    mem.copy(&memory[0x4000], &romBanks[romBankNr], 0x4000)
 }
 
-RAMSwitch :: proc(data: u8) {
+bus_ram_switch :: proc(data: u8) {
     data := data
     #partial switch (mbc)
     {
@@ -319,7 +328,7 @@ RAMSwitch :: proc(data: u8) {
         if(mbc1Mode == 0) { //Rom
             data = data << 5
             romBankNr &= 0x1F
-            romBankNr |= data
+            romBankNr |= u16(data)
         } else {	//Ram
             ramBankNr = data
         }
@@ -350,7 +359,7 @@ bus_has_battery :: proc() -> bool {
             mbc == Mbc.MBC5_RAM_BAT || mbc == Mbc.MBC5_RUM_SRAM_BAT
 }
 
-SaveRam :: proc() {
+bus_save_ram :: proc() {
     /*if(ramChanged)
     {
         string loadName = "Roms/" + romName + ".sav";
@@ -365,7 +374,7 @@ SaveRam :: proc() {
     ramChanged = false;*/
 }
 
-LoadRam :: proc() {
+bus_load_ram :: proc() {
     /*string saveName = "Roms/" + romName + ".sav";
     if(File.Exists(saveName))
     {

@@ -8,6 +8,7 @@ import sdlimg "vendor:sdl2/image"
 
 SKIP_BIOS :: false
 ROM_PATH :: "tests/APOCNOW.GB"
+SERIAL_DEBUG :: true
 
 WIN_WIDTH :: 160
 WIN_HEIGHT :: 144
@@ -66,7 +67,7 @@ main :: proc() {
         disable_bootloader()
     }
 
-    LoadROM(ROM_PATH)
+    bus_load_ROM(ROM_PATH)
 
     ticks: u16
     step_length :f32= 1.0 / 60.0
@@ -166,4 +167,5 @@ disable_bootloader :: proc() {
     bus_write(u16(IO.BL), 1)
     bus_set(u16(IO.LCDC), 0x91)
     PC = 0x100
+    SP = 0xFFFE
 }

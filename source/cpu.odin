@@ -51,9 +51,6 @@ cpu_step :: proc() -> u16 {
     cpu_handle_irq()
     cpu_handle_tmr(op.cycles + cycleMod)
 
-    /*if(reg.PC == breakPcAddress)
-        Debug.Break()*/
-
     return u16(op.cycles + cycleMod)
 }
 

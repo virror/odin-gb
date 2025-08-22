@@ -53,7 +53,7 @@ ppu_step :: proc(cycle: u16) -> bool {
     case .HBlank:		// H-blank
         if(scanlineCounter < 0) {
             scanlineCounter += 456
-            if(ly >= 144) {	// -> Mode 1 - V-blank
+            if(ly >= 143) {	// -> Mode 1 - V-blank
                 status.mode = .VBlank
                 iFlags.lcdc = status.vblank
                 iFlags.VBlank = true
@@ -277,7 +277,7 @@ ppu_convert_row :: proc(ly: u8) {
         } else {
             color = ppu_get_color((pixelColor - 8), IO.OBP1)
         }
-        screen_buffer[x + (ly * WIN_WIDTH)] = color
+        screen_buffer[u16(x) + (u16(ly) * u16(WIN_WIDTH))] = color
     }
 }
 
@@ -308,16 +308,16 @@ ppu_get_color :: proc(colorNum: u8, address: IO) -> u16 {
     res: u16
     switch (colour) {
     case 0:
-        res = 0
+        res = 0xFFFF
         break
     case 1:
-        res = 0x294A
-        break
-    case 2:
         res = 0x5294
         break
+    case 2:
+        res = 0x294A
+        break
     case 3:
-        res = 0xFFFF
+        res = 0
         break
     }
     return res
