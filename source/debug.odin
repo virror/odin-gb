@@ -38,7 +38,7 @@ debug_draw_op :: proc(opText: cstring, pc: u16, posX: i32, posY: i32) {
 }
 
 debug_draw_reg :: proc(regText: cstring, reg: u16, posX: i32, posY: i32) {
-    line := fmt.caprintf("%s %x", regText, reg)
+    line := fmt.caprintf("%s %4x", regText, reg)
     debug_text(line, posX, posY, {230, 230, 230, 230})
 }
 

@@ -107,16 +107,13 @@ bus_read8 :: proc(address: u16) -> u8 {
     } else {
         /*if address == breakReadAddress)
             Debug.Break()*/
-
-        if address >= 0xA000 && address < 0xC000 {	//RAM
+        switch (address) {
+        case 0xA000..<0xC000:	//RAM
             if ramEnabled && (ramSize == 1 && address < 0xA800) || ramSize > 1 {
                 return ramBanks[ramBankNr][address - 0xA000]
             } else {
                 return 0xFF
             }
-        }
-
-        switch (address) {
         case 0xFF0F:
             return memory[address] | 0xE0
         case:
@@ -136,52 +133,48 @@ bus_write :: proc(address: u16, data: u8) {
         /*if address == breakWriteAddress {
             fmt.println("a")
         }*/
-
-        if address < 0x8000 {	//ROM
+        switch (address) {
+        case 0x0000..<0x8000:	//ROM
             BankSwitch(address, data)
-        } else if address >= 0xA000 && address < 0xC000 {	//RAM
+        case 0xA000..<0xC000:   //RAM
             if ramEnabled {
                 if (ramSize == 1 && address < 0xA800) || ramSize > 1 {
                     ramBanks[ramBankNr][address - 0xA000] = data
                 }
             }
-        } else if address >= 0xE000 && address < 0xFE00 {
+        case 0xE000..<0xFE00:   //Echo RAM?
             memory[address] = data
             bus_write(u16(address - 0x2000), data)
-        } else if address >= 0xFEA0 && address <= 0xFEFF	{ //Restricted memory
+        case 0xFEA0..<0xFEFF:   //Restricted memory
             return
-        } else {
-            #partial switch IO(address)
-            {
-            case IO.P1:
-                if bit_test(data, 4) {
-                    memory[address] = keyState
-                }
-                if bit_test(data, 5) {
-                    memory[address] = keyState >> 4
-                }
-                break
-            case IO.SB:
-                /*if serialDebug {
-                    fmt.print(data)
-                }*/
-                break
-            case IO.LY:
-                break
-            case IO.DIV:
-                memory[address] = 0
-                break
-            case IO.DMA:
-                bus_dma_transfer(data)
-                break
-            case IO.BL:
-                //Array.Copy(romBanks[0], memory, 0x4000)
-                //mem.copy(&romBanks[0], &memory[0], 0x4000)
-                break
-            case:
-                memory[address] = data
-                break
+        case u16(IO.P1):
+            if bit_test(data, 4) {
+                memory[address] = keyState
             }
+            if bit_test(data, 5) {
+                memory[address] = keyState >> 4
+            }
+            break
+        case u16(IO.SB):
+            /*if serialDebug {
+                fmt.print(data)
+            }*/
+            break
+        case u16(IO.LY):
+            break
+        case u16(IO.DIV):
+            memory[address] = 0
+            break
+        case u16(IO.DMA):
+            bus_dma_transfer(data)
+            break
+        case u16(IO.BL):
+            //Array.Copy(romBanks[0], memory, 0x4000)
+            //mem.copy(&romBanks[0], &memory[0], 0x4000)
+            break
+        case:
+            memory[address] = data
+            break
         }
     }
 }
@@ -249,14 +242,15 @@ LoadROM :: proc(rom: string) {
 }
 
 BankSwitch :: proc(address: u16, data: u8) {
-    if(address >= 0 && address < 0x2000) {
+    switch(address) {
+    case 0x0000..<0x2000:	//RAM Enable
         ramEnabled = ((data & 0x0F) == 0x0A)
         ramChanged = !ramEnabled
-    } else if(address >= 0x2000 && address < 0x4000) {
+    case 0x2000..<0x4000:	//ROM Switch
         ROMSwitch(address, data)
-    } else if(address >= 0x4000 && address < 0x6000) {
+    case 0x4000..<0x6000:	//RAM Switch
         RAMSwitch(data)
-    } else if(address >= 0x6000 && address < 0x8000) {
+    case 0x6000..<0x8000:	//MBC1 Mode
         if(bit_test(data, 0)) {
             mbc1Mode = 1
         } else {

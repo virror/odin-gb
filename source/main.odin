@@ -2,13 +2,11 @@ package main
 
 import "core:text/edit"
 import "core:fmt"
-//import "core:strings"
-//import "core:os"
 import sdl "vendor:sdl2"
 import sdlttf "vendor:sdl2/ttf"
 import sdlimg "vendor:sdl2/image"
 
-SKIP_BIOS :: true
+SKIP_BIOS :: false
 ROM_PATH :: "tests/APOCNOW.GB"
 
 WIN_WIDTH :: 160
@@ -164,7 +162,7 @@ handle_dbg_keys :: proc(event: ^sdl.Event) {
     }
 }
 
-disable_bootloader :: proc()	{
+disable_bootloader :: proc() {
     bus_write(u16(IO.BL), 1)
     bus_set(u16(IO.LCDC), 0x91)
     PC = 0x100
