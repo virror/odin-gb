@@ -91,7 +91,7 @@ cpu_handle_irq :: proc() {
                     bus_set(SP, u8(PC >> 8))
                     SP -= 1
                     bus_set(SP, u8(PC))
-                    bus_set(u16(IO.IF), bit_clear(iFlags, i))
+                    bus_set(u16(IO.IF), (iFlags & ~(1 << i)))
                     PC = 0x0040 + u16(i) * 0x8 //TODO: Must fix for multiple interrupts, lowest priority first
                     cycleMod += 20
                 }
@@ -137,8 +137,9 @@ cpu_handle_tmr :: proc(cycle: u8) {
             tima += 1
             if(tima > 255) {
                 tima = bus_get(u16(IO.TMA))
-                iFlags := bus_get(u16(IO.IF))
-                bus_set(u16(IO.IF), bit_set1(iFlags, 2))
+                iFlags := IRQ(bus_get(u16(IO.IF)))
+                iFlags.Timer = true
+                bus_set(u16(IO.IF), u8(iFlags)) //Set Timer interrupt flag
             }
             bus_set(u16(IO.TIMA), tima)
         }

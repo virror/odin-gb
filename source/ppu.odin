@@ -15,7 +15,7 @@ IRQ :: bit_field u8 {
     Timer: bool     | 1,
     Serial: bool    | 1,
     Joypad: bool    | 1,
-    unused: u8      | 3,
+    Unused: u8      | 3,
 }
 
 Status :: bit_field u8 {
@@ -138,7 +138,7 @@ ppu_drawSprites :: proc(lcdc: u8, ly: u8) {
         yPos -= 16
         ySize: u8
         if(bit_test(lcdc, 2)) {
-            index = bit_clear(index, 0)
+            index = index & 0xE //Clear bit 0
             ySize = 16
         } else {
             ySize = 8

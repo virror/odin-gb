@@ -1149,13 +1149,13 @@ BITx :: proc(bit: u8, index: Index) {
 
 //SET b, x
 SETx :: proc(bit: u8, index: Index) {
-        value := bit_set1(getReg(index), bit)
+        value := getReg(index) | (1 << bit)
         setReg(index, value)
 }
 
 //RES b, x
 RESx :: proc(bit: u8, index: Index) {
-        value := bit_clear(getReg(index), bit)
+        value := getReg(index) & ~(1 << bit)
         setReg(index, value)
 }
 
