@@ -28,6 +28,17 @@ Status :: bit_field u8 {
     unused: bool    | 1,
 }
 
+Llcd :: bit_field u8 {
+    bg_enable: bool     | 1,
+    obj_enable: bool    | 1,
+    obj_size: bool      | 1,
+    bg_map: bool        | 1,
+    bg_tiles: bool      | 1,
+    window_enable: bool | 1,
+    window_map: bool    | 1,
+    lcd_enable: bool    | 1,
+}
+
 scanlineCounter :i32= 204
 screenRow: [160]u8
 screen_buffer: [WIN_WIDTH * WIN_HEIGHT]u16
@@ -38,12 +49,12 @@ ppu_reset :: proc() {
 
 ppu_step :: proc(cycle: u16) -> bool {
     retval: bool
-    lcdc := bus_get(u16(IO.LCDC))
+    lcdc := Llcd(bus_get(u16(IO.LCDC)))
     status := Status(bus_get(u16(IO.STAT)))
     iFlags := IRQ(bus_get(u16(IO.IF)))
     ly := bus_get(u16(IO.LY))
     
-    if(bit_test(lcdc, 7) == false) {	//LCD is off, dont draw, reset display
+    if(!lcdc.lcd_enable) {	//LCD is off, dont draw, reset display
         ppu_reset_LCD(status)
         return false
     }
@@ -116,19 +127,19 @@ ppu_set_ly :: proc(ly: u8, status: ^Status, iflags: ^IRQ) {
     bus_set(u16(IO.LY), ly)
 }
 
-ppu_draw_scanline :: proc(lcdc: u8, ly: u8) {
-    if(bit_test(lcdc, 0)) {
+ppu_draw_scanline :: proc(lcdc: Llcd, ly: u8) {
+    if(lcdc.bg_enable) {
         ppu_draw_background(lcdc, ly)
     }
-    if(bit_test(lcdc, 1)) {
+    if(lcdc.obj_enable) {
         ppu_drawSprites(lcdc, ly)
     }
     ppu_convert_row(ly)
 }
 
-ppu_drawSprites :: proc(lcdc: u8, ly: u8) {
+ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
     for i :i16= 39; i >= 0; i -= 1 {
-        yPos := bus_read8(0xFE00 + u16(i * 4))
+        yPos := i16(bus_read8(0xFE00 + u16(i * 4)))
         index := bus_read8(0xFE00 + u16(i * 4 + 2))
 
         if(yPos == 0 || yPos >= 160) {
@@ -137,21 +148,21 @@ ppu_drawSprites :: proc(lcdc: u8, ly: u8) {
 
         yPos -= 16
         ySize: u8
-        if(bit_test(lcdc, 2)) {
+        if(lcdc.obj_size) {
             index = index & 0xE //Clear bit 0
             ySize = 16
         } else {
             ySize = 8
         }
 
-        if(yPos <= ly && (yPos + ySize) > ly) {
+        if(yPos <= i16(ly) && (yPos + i16(ySize)) > i16(ly)) {
             xPos := bus_read8(0xFE00 + u16(i * 4 + 1)) - 8
             flags := bus_read8(0xFE00 + u16(i * 4 + 3))
             xFlip := bit_test(flags, 5)
             yFlip := bit_test(flags, 6)
-            line := ly - yPos
+            line := i16(ly) - yPos
             if(yFlip) {
-                line = ((ySize - 1) - line)
+                line = (i16(ySize - 1) - line)
             }
             
             address := 0x8000 + u16(index * 16) + u16(line * 2)
@@ -191,7 +202,7 @@ ppu_drawSprites :: proc(lcdc: u8, ly: u8) {
     }
 }
 
-ppu_draw_background :: proc(lcdc: u8, ly: u8) {
+ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
     scy := bus_read8(u16(IO.SCY))
     scx := bus_read8(u16(IO.SCX))
     wy := bus_read8(u16(IO.WY))
@@ -201,27 +212,27 @@ ppu_draw_background :: proc(lcdc: u8, ly: u8) {
     window: bool
 
     tileData: u16
-    if(bit_test(lcdc, 4)) {
+    if(lcdc.bg_tiles) {
         tileData = 0x8000
     } else {
         tileData = 0x8800
     }
 
-    if (bit_test(lcdc, 5)) {
+    if (lcdc.window_enable) {
         if (wy <= ly) {
             window = true
         }
     }
 
     if (!window) {
-        if (bit_test(lcdc, 3)) {
+        if (lcdc.bg_map) {
             backMem = 0x9C00
         } else {
             backMem = 0x9800
         }
         yPos = scy + ly
     } else {
-        if (bit_test(lcdc, 6)) {
+        if (lcdc.window_map) {
             backMem = 0x9C00
         } else {
             backMem = 0x9800

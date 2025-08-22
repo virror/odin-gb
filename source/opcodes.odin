@@ -310,7 +310,7 @@ OC07 :: proc() {
 OC08 :: proc() {
     addr := bus_read16(PC)
     bus_write(addr, u8(SP))
-    bus_write(u16(addr + 1), u8(SP >> 8))
+    bus_write(addr + 1, u8(SP >> 8))
     PC += 2
 }
 
@@ -444,7 +444,6 @@ OC23 :: proc() {
 
 //DAA
 OC27 :: proc() {
-    // note: assumes a is a uint8_t and wraps from 0xff to 0
     if (!reg.F.N) {  // after an addition, adjust if (half-)carry occurred or if result is out of bounds
         if (reg.F.C || reg.A > 0x99) {
             reg.A += 0x60
@@ -461,7 +460,6 @@ OC27 :: proc() {
             reg.A -= 0x6
         }
     }
-    // these flags are always updated
     reg.F.Z = (reg.A == 0) // the usual z flag
     reg.F.H = false // h flag is always cleared
 }
@@ -657,7 +655,7 @@ OCCA :: proc() {
 //CALL Z, nn
 OCCC :: proc() {
     if(reg.F.Z == true) {
-        Push(u16(PC + 2))
+        Push(PC + 2)
         PC = bus_read16(PC)
         cycleMod = 12
     } else {
@@ -667,7 +665,7 @@ OCCC :: proc() {
 
 //CALL nn
 OCCD :: proc() {
-    Push(u16(PC + 2))
+    Push(PC + 2)
     PC = bus_read16(PC)
 }
 
@@ -699,7 +697,7 @@ OCD2 :: proc() {
 //CALL NC, nn
 OCD4 :: proc() {
     if(reg.F.C == false) {
-        Push(u16(PC + 2))
+        Push(PC + 2)
         PC = bus_read16(PC)
         cycleMod = 12
     } else {
@@ -741,7 +739,7 @@ OCDA :: proc() {
 //CALL C, nn
 OCDC :: proc() {
     if(reg.F.C == true) {
-        Push(u16(PC + 2))
+        Push(PC + 2)
         PC = bus_read16(PC)
         cycleMod = 12
     } else {
@@ -751,7 +749,7 @@ OCDC :: proc() {
 
 //LDH FF00+n, A
 OCE0 :: proc() {
-    bus_write(u16(0xFF00 + u16(bus_read8(PC))), reg.A)
+    bus_write(0xFF00 + u16(bus_read8(PC)), reg.A)
     PC += 1
 }
 
@@ -763,7 +761,7 @@ OCE1 :: proc() {
 
 //LD FF00+C, A
 OCE2 :: proc() {
-    bus_write(u16(0xFF00 + u16(reg.C)), reg.A)
+    bus_write(0xFF00 + u16(reg.C), reg.A)
 }
 
 //PUSH HL
@@ -1445,8 +1443,7 @@ XORx :: proc(index: Index) {
 //CP A, x
 CPx :: proc(index: Index) {
     par := getReg(index)
-    newValue := (reg.A - par)
-    reg.F.Z = newValue == 0
+    reg.F.Z = (reg.A - par) == 0
     reg.F.N = true
     cpu_setHalfSub8(reg.A, par)
     cpu_setCarrySub8(reg.A, par)
