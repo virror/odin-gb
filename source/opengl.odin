@@ -24,7 +24,7 @@ render_init :: proc(window2: ^sdl.Window) {
 
     gl.load_up_to(3, 3, sdl.gl_set_proc_address)
     sdl.GL_SetSwapInterval(1)
-    gl.Viewport(0, 0, WIN_WIDTH, WIN_HEIGHT)
+    gl.Viewport(0, 0, WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE)
 
     vert_shader := shader_compile(#load("../shaders/shader.vert"), gl.VERTEX_SHADER)
     frag_shader := shader_compile(#load("../shaders/shader.frag"), gl.FRAGMENT_SHADER)

@@ -7,11 +7,12 @@ import sdlttf "vendor:sdl2/ttf"
 import sdlimg "vendor:sdl2/image"
 
 SKIP_BIOS :: false
-ROM_PATH :: "tests/APOCNOW.GB"
+ROM_PATH :: "tests/bgbtest.GB"
 SERIAL_DEBUG :: true
 
 WIN_WIDTH :: 160
 WIN_HEIGHT :: 144
+WIN_SCALE :: 2
 
 Vector2f :: distinct [2]f32
 Vector2u :: distinct [2]u32
@@ -40,7 +41,7 @@ main :: proc() {
     sdlimg.Init(sdlimg.INIT_PNG)
     defer sdlttf.Quit()
 
-    window = sdl.CreateWindow("psx emu", 100, 100, WIN_WIDTH, WIN_HEIGHT,
+    window = sdl.CreateWindow("odin-gb", 100, 100, WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE,
         sdl.WINDOW_OPENGL)
     assert(window != nil, "Failed to create main window")
     defer sdl.DestroyWindow(window)
@@ -83,6 +84,7 @@ main :: proc() {
         //ticks = 0
         //for (ticks < ticks_to_run) {
             handle_events()
+            input_step()
             if (!pause || step) && !redraw {
                 //handle_events()
                 cycles := cpu_step()
@@ -142,8 +144,7 @@ handle_events :: proc() {
             if event.window.event == sdl.WindowEventID.CLOSE {
                 exit = true
             }
-        case:
-            //input_process(&event)
+        case sdl.EventType.KEYDOWN:
             handle_dbg_keys(&event)
         }
     }
@@ -151,15 +152,13 @@ handle_events :: proc() {
 
 @(private="file")
 handle_dbg_keys :: proc(event: ^sdl.Event) {
-    if event.type == sdl.EventType.KEYDOWN {
-        #partial switch event.key.keysym.sym {
-        case sdl.Keycode.p:
-            pause = !pause
-        case sdl.Keycode.s:
-            step = true
-        case sdl.Keycode.ESCAPE:
-            exit = true
-        }
+    #partial switch event.key.keysym.sym {
+    case sdl.Keycode.p:
+        pause = !pause
+    case sdl.Keycode.s:
+        step = true
+    case sdl.Keycode.ESCAPE:
+        exit = true
     }
 }
 

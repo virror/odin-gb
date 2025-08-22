@@ -69,7 +69,7 @@ cpu_get_opcode :: proc(debug: bool) -> (Opcode, u8) {
         op = opcodes[opcode]
     }
     if op.func == nil {
-        fmt.println(opcode)
+        fmt.println("Unknown opcode: ", opcode)
     }
     return op, opcode
 }
