@@ -103,7 +103,7 @@ cpu_handle_tmr :: proc(cycle: u8) {
     if(dTimer >= 256) {
         dTimer -= 256
         div := bus_get(u16(IO.DIV))
-        div -= 1
+        div += 1
         bus_set(u16(IO.DIV), div)
     }
 
@@ -130,15 +130,15 @@ cpu_handle_tmr :: proc(cycle: u8) {
         }
         if(tTimer >= compare) {
             tTimer -= compare
-            tima := bus_get(u16(IO.TIMA))
+            tima := u16(bus_get(u16(IO.TIMA)))
             tima += 1
             if(tima > 255) {
-                tima = bus_get(u16(IO.TMA))
+                tima = u16(bus_get(u16(IO.TMA)))
                 iFlags := IRQ(bus_get(u16(IO.IF)))
                 iFlags.Timer = true
                 bus_set(u16(IO.IF), u8(iFlags)) //Set Timer interrupt flag
             }
-            bus_set(u16(IO.TIMA), tima)
+            bus_set(u16(IO.TIMA), u8(tima))
         }
     }
 }
