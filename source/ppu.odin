@@ -165,7 +165,7 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
                 line = (i16(ySize - 1) - line)
             }
 
-            address :u16= 0x8000 + u16(index * 16) + u16(line * 2)
+            address :u16= 0x8000 + u16(index) * 16 + u16(line) * 2
             line1 := bus_read8(address)
             line2 := bus_read8(address + 1)
 
