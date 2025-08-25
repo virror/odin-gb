@@ -430,12 +430,12 @@ OC1F :: proc() {
 
 //JR NZ, n
 OC20 :: proc() {
+    pc := i16(i8(bus_read8(PC)))
     if(reg.F.Z == false) {
-        PC = u16(i16(PC) + i16(i8(bus_read8(PC))) + 1)
+        PC = u16(i16(PC) + pc) + 1
         bus_dummy()
         cycleMod = 4
     } else {
-        bus_read8(PC)
         PC += 1
     }
 }
@@ -483,12 +483,12 @@ OC27 :: proc() {
 
 //JR Z, n
 OC28 :: proc() {
+    pc := i16(i8(bus_read8(PC)))
     if(reg.F.Z == true) {
-        PC = u16(i16(PC) + i16(i8(bus_read8(PC))) + 1)
+        PC = u16(i16(PC) + pc + 1)
         bus_dummy()
         cycleMod = 4
     } else {
-        bus_read8(PC)
         PC += 1
     }
 }
@@ -523,12 +523,12 @@ OC2F :: proc() {
 
 //JR NC, n
 OC30 :: proc() {
+    pc := i16(i8(bus_read8(PC)))
     if(reg.F.C == false) {
-        PC = u16(i16(PC) + i16(i8(bus_read8(PC))) + 1)
+        PC = u16(i16(PC) + pc + 1)
         bus_dummy()
         cycleMod = 4
     } else {
-        bus_read8(PC)
         PC += 1
     }
 }
@@ -568,12 +568,12 @@ OC37 :: proc() {
 
 //JR C, n
 OC38 :: proc() {
+    pc := i16(i8(bus_read8(PC)))
     if(reg.F.C == true) {
-        PC = u16(i16(PC) + i16(i8(bus_read8(PC))) + 1)
+        PC = u16(i16(PC) + pc + 1)
         bus_dummy()
         cycleMod = 4
     } else {
-        bus_read8(PC)
         PC += 1
     }
 }
@@ -622,15 +622,13 @@ OCC1 :: proc() {
 
 //JP NZ, nn
 OCC2 :: proc() {
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
     if(reg.F.Z == false) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
         bus_dummy()
         PC = pc
         cycleMod = 4
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
@@ -645,15 +643,13 @@ OCC3 :: proc() {
 
 //CALL NZ, nn
 OCC4 :: proc() {
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
     if(reg.F.Z == false) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
         Push(u16(PC + 2))
         PC = pc
         cycleMod = 12
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
@@ -678,16 +674,14 @@ OCC0 :: proc() {
 
 //RET Z
 OCC8 :: proc() {
+    bus_dummy()
     if(reg.F.Z == true) {
-        bus_dummy()
         pc := u16(bus_read8(SP))
         pc += u16(bus_read8(SP + 1)) << 8
         bus_dummy()
         PC = pc
         SP += 2
         cycleMod = 12
-    } else {
-        bus_dummy()
     }
 }
 
@@ -702,30 +696,26 @@ OCC9 :: proc() {
 
 //JP Z, nn
 OCCA :: proc() {
-    if(reg.F.Z == true) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
+    if(reg.F.Z == true) {    
         bus_dummy()
         PC = pc
         cycleMod = 4
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
 
 //CALL Z, nn
 OCCC :: proc() {
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
     if(reg.F.Z == true) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
         Push(PC + 2)
         PC = pc
         cycleMod = 12
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
@@ -740,16 +730,14 @@ OCCD :: proc() {
 
 //RET NC
 OCD0 :: proc() {
+    bus_dummy()
     if(reg.F.C == false) {
-        bus_dummy()
         pc := u16(bus_read8(SP))
         pc += u16(bus_read8(SP + 1)) << 8
         bus_dummy()
         PC = pc
         SP += 2
         cycleMod = 12
-    } else {
-        bus_dummy()
     }
 }
 
@@ -762,30 +750,26 @@ OCD1 :: proc() {
 
 //JP NC, nn
 OCD2 :: proc() {
-    if(reg.F.C == false) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
+    if(reg.F.C == false) { 
         bus_dummy()
         PC = pc
         cycleMod = 4
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
 
 //CALL NC, nn
 OCD4 :: proc() {
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
     if(reg.F.C == false) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
         Push(PC + 2)
         PC = pc
         cycleMod = 12
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
@@ -797,16 +781,14 @@ OCD5 :: proc() {
 
 //RET C
 OCD8 :: proc() {
+    bus_dummy()
     if(reg.F.C == true) {
-        bus_dummy()
         pc := u16(bus_read8(SP))
         pc += u16(bus_read8(SP + 1)) << 8
         bus_dummy()
         PC = pc
         SP += 2
         cycleMod = 12
-    } else {
-        bus_read8(PC - 1)
     }
 }
 
@@ -822,30 +804,26 @@ OCD9 :: proc() {
 
 //JP C, nn
 OCDA :: proc() {
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
     if(reg.F.C == true) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
         bus_dummy()
         PC = pc
         cycleMod = 4
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
 
 //CALL C, nn
 OCDC :: proc() {
+    pc := u16(bus_read8(PC))
+    pc += u16(bus_read8(PC + 1)) << 8
     if(reg.F.C == true) {
-        pc := u16(bus_read8(PC))
-        pc += u16(bus_read8(PC + 1)) << 8
         Push(PC + 2)
         PC = pc
         cycleMod = 12
     } else {
-        bus_read8(PC)
-        bus_read8(PC + 1)
         PC += 2
     }
 }
