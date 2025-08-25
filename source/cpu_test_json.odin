@@ -31,7 +31,7 @@ Json_data :: struct {
     name: string,
     initial: Registers,
     final: Registers,
-    cycles: [][]union{ int, string },
+    cycles: [][]union{ u16, string },
 }
 
 @(private="file")
@@ -39,7 +39,15 @@ test_fail: bool
 @(private="file")
 fail_cnt: int
 @(private="file")
-ram_mem: [0x1000000]u8
+ram_mem: [0x10000]u8
+@(private="file")
+cycle: u32
+@(private="file")
+json_data: [dynamic]Json_data
+@(private="file")
+test_idx: int
+@(private="file")
+error_string: string
 
 test_all :: proc() {
     when TEST_ALL {
@@ -68,7 +76,6 @@ test_file :: proc(filename: string) {
     //Setup
     data, err := os.read_entire_file_from_filename(filename)
     assert(err == true, "Could not load test file")
-    json_data: [dynamic]Json_data
     error := json.unmarshal(data, &json_data)
     if error != nil {
         fmt.println(error)
@@ -78,6 +85,7 @@ test_file :: proc(filename: string) {
     test_length := len(json_data)
     for i:= 0; i < test_length; i += 1 {
         if !test_fail {
+            test_idx = i
             test_run(json_data[i])
         }
     }
@@ -86,7 +94,6 @@ test_file :: proc(filename: string) {
 
 @(private="file")
 test_run :: proc(json_data: Json_data) {
-    error_string: string
     PC = json_data.initial.pc
     SP = json_data.initial.sp
     reg.A = json_data.initial.a
@@ -101,11 +108,13 @@ test_run :: proc(json_data: Json_data) {
     ram_length := len(json_data.initial.ram)
     for i:= 0; i < ram_length; i += 1 {
         mem_val := json_data.initial.ram[i]
-        bus_set(mem_val[0], u8(mem_val[1]))
+        ram_mem[mem_val[0]] = u8(mem_val[1])
     }
 
     //Run opcode
     halt = false
+    cycle = 0
+    error_string = ""
     cpu_step()
 
     //Compare results
@@ -140,6 +149,11 @@ test_run :: proc(json_data: Json_data) {
         error_string = fmt.aprintf("Fail: SP is %d should be %d", SP, json_data.final.sp)
     }
 
+    cycle_cnt := u32(len(json_data.cycles))
+    if(cycle != cycle_cnt) {
+        error_string = fmt.aprintf("Fail: Cycle count is %d should be %d", cycle, cycle_cnt)
+    }
+
     if error_string != "" {
         when TEST_BREAK_ERROR {
             fmt.println(json_data.name)
@@ -152,30 +166,33 @@ test_run :: proc(json_data: Json_data) {
     exit = true
 }
 
-test_read :: proc(size: u8, addr: u32) -> u32 {
-    switch size {
-    case 8:
-        return u32(ram_mem[addr])
-    case 16:
-        return u32(ram_mem[addr + 1]) | (u32(ram_mem[addr]) << 8)
-    case 32:
-        return u32(ram_mem[addr + 3]) | (u32(ram_mem[addr + 2]) << 8) |
-            (u32(ram_mem[addr + 1]) << 16) | (u32(ram_mem[addr]) << 24)
-    }
-    return 0
+test_read :: proc(addr: u16) -> u8 {
+    value := ram_mem[addr]
+    test_check_cycle(addr, value, true)
+    return value
 }
 
-test_write :: proc(size: u8, addr: u32, value: u32) {
-    switch size {
-    case 8:
-        ram_mem[addr] = u8(value)
-    case 16:
-        ram_mem[addr + 1] = u8(value & 0xFF)
-        ram_mem[addr + 0] = u8((value >> 8) & 0xFF)
-    case 32:
-        ram_mem[addr + 3] = u8(value & 0xFF)
-        ram_mem[addr + 2] = u8((value >> 8) & 0xFF)
-        ram_mem[addr + 1] = u8((value >> 16) & 0xFF)
-        ram_mem[addr + 0] = u8((value >> 24) & 0xFF)
+test_write :: proc(addr: u16, value: u8) {
+    test_check_cycle(addr, value, false)
+    ram_mem[addr] = value
+}
+
+test_check_cycle :: proc(addr: u16, value: u8, read: bool) {
+    ok_addr := json_data[test_idx].cycles[cycle][0].(u16)
+    if(addr != ok_addr) {
+        if(read) {
+            error_string = fmt.aprintf("Fail cycle %d: Reading addr %d should be %d", cycle, addr, ok_addr)
+        } else {
+            error_string = fmt.aprintf("Fail cycle %d: Writing addr %d should be %d", cycle, addr, ok_addr)
+        }
     }
+    ok_data := u8(json_data[test_idx].cycles[cycle][1].(u16))
+    if(value != ok_data) {
+        if(read) {
+            error_string = fmt.aprintf("Fail cycle %d: Reading data %d should be %d", cycle, value, ok_data)
+        } else {
+            error_string = fmt.aprintf("Fail cycle %d: Writing data %d should be %d", cycle, value, ok_data)
+        }
+    }
+    cycle += 1
 }

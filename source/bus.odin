@@ -92,6 +92,8 @@ romBankNr: u16
 ramBankNr: u8
 mbc: Mbc
 mbc1Mode: u8
+bus_address: u16
+bus_value: u8
 
 bus_init :: proc() {
     file, err := os.open("Bootloader.bin", os.O_RDONLY)
@@ -101,32 +103,40 @@ bus_init :: proc() {
     os.close(file)
 }
 
-bus_read8 :: proc(address: u16) -> u8 {
+bus_dummy :: proc() {
     when TEST_ENABLE {
-        return bus_get(address)
+        test_write(bus_address, bus_value)
+    }
+}
+
+bus_read8 :: proc(address: u16) -> u8 {
+    value: u8
+    bus_address = address
+    when TEST_ENABLE {
+        value = test_read(address)
     } else {
         switch (address) {
         case 0xA000..<0xC000:	//RAM
             if ramEnabled && (ramSize == 1 && address < 0xA800) || ramSize > 1 {
-                return ramBanks[ramBankNr][address - 0xA000]
+                value = ramBanks[ramBankNr][address - 0xA000]
             } else {
-                return 0xFF
+                value = 0xFF
             }
         case 0xFF0F:
-            return memory[address] | 0xE0
+            value = memory[address] | 0xE0
         case:
-            return memory[address]
+            value = memory[address]
         }
     }
-}
-
-bus_read16 :: proc(address: u16) -> u16 {
-	return (u16(bus_read8(address + 1)) << 8) + u16(bus_read8(address))
+    bus_value = value
+    return value
 }
 
 bus_write :: proc(address: u16, data: u8) {
+    bus_address = address
+    bus_value = bus_value
     when TEST_ENABLE {
-        bus_set(address, data)
+        test_write(address, data)
     } else {
         switch (address) {
         case 0x0000..<0x8000:	//ROM
@@ -173,11 +183,25 @@ bus_write :: proc(address: u16, data: u8) {
 }
 
 bus_set :: proc(address: u16, data: u8) {
-    memory[address] = data
+    bus_address = address
+    bus_value = bus_value
+    when TEST_ENABLE {
+        test_write(address, data)
+    } else {
+        memory[address] = data
+    }
 }
 
 bus_get :: proc(address: u16) -> u8 {
-    return memory[address]
+    value: u8
+    bus_address = address
+    when TEST_ENABLE {
+        value = test_read(address)
+    } else {
+        value = memory[address]
+    }
+    bus_value = value
+    return value
 }
 
 bus_dma_transfer :: proc(data: u8) {

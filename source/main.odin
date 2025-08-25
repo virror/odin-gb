@@ -58,6 +58,7 @@ main :: proc() {
 
     when TEST_ENABLE {
         test_all()
+        return
     }
 
     when SKIP_BIOS {

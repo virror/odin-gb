@@ -48,9 +48,10 @@ cpu_step :: proc() -> u16 {
     } else {
         op = opcodes[0x00] //If HALT, NOP
     }
-    cpu_handle_irq()
-    cpu_handle_tmr(op.cycles + cycleMod)
-
+    when(!TEST_ENABLE) {
+        cpu_handle_irq()
+        cpu_handle_tmr(op.cycles + cycleMod)
+    }
     return u16(op.cycles + cycleMod)
 }
 
