@@ -85,6 +85,7 @@ main :: proc() {
             ticks += cycles
 
             redraw = ppu_step(cycles)
+            serial_step(cycles)
 
             if step {
                 step = false
