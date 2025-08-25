@@ -139,8 +139,8 @@ ppu_draw_scanline :: proc(lcdc: Llcd, ly: u8) {
 
 ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
     for i :i16= 39; i >= 0; i -= 1 {
-        yPos := i16(bus_read8(0xFE00 + u16(i * 4)))
-        index := bus_read8(0xFE00 + u16(i * 4 + 2))
+        yPos := i16(bus_read(0xFE00 + u16(i * 4)))
+        index := bus_read(0xFE00 + u16(i * 4 + 2))
 
         if(yPos == 0 || yPos >= 160) {
             continue
@@ -156,8 +156,8 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
         }
 
         if(yPos <= i16(ly) && (yPos + i16(ySize)) > i16(ly)) {
-            xPos := bus_read8(0xFE00 + u16(i * 4 + 1)) - 8
-            flags := bus_read8(0xFE00 + u16(i * 4 + 3))
+            xPos := bus_read(0xFE00 + u16(i * 4 + 1)) - 8
+            flags := bus_read(0xFE00 + u16(i * 4 + 3))
             xFlip := bit_test(flags, 5)
             yFlip := bit_test(flags, 6)
             line := i16(ly) - yPos
@@ -166,8 +166,8 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
             }
 
             address :u16= 0x8000 + u16(index) * 16 + u16(line) * 2
-            line1 := bus_read8(address)
-            line2 := bus_read8(address + 1)
+            line1 := bus_read(address)
+            line2 := bus_read(address + 1)
 
             for j :i8= 7; j >= 0; j -= 1 {
                 colorBit := u8(j)
@@ -203,10 +203,10 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
 }
 
 ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
-    scy := bus_read8(u16(IO.SCY))
-    scx := bus_read8(u16(IO.SCX))
-    wy := bus_read8(u16(IO.WY))
-    wx := i16(i8(bus_read8(u16(IO.WX)) - 7))
+    scy := bus_read(u16(IO.SCY))
+    scx := bus_read(u16(IO.SCX))
+    wy := bus_read(u16(IO.WY))
+    wx := i16(i8(bus_read(u16(IO.WX)) - 7))
     yPos: u8
     backMem: u16
     window: bool
@@ -254,7 +254,7 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         tileAddress := backMem + tileRow + tileCol
         tileLocation := tileData
 
-        tileNum := bus_read8(tileAddress)
+        tileNum := bus_read(tileAddress)
         if(tileData == 0x8000) {
             tileLocation += u16(tileNum) * 16
         } else {
@@ -263,8 +263,8 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
 
         line := u16(yPos % 8)
         line *= 2
-        data1 := bus_read8(tileLocation + line)
-        data2 := bus_read8(tileLocation + line + 1)
+        data1 := bus_read(tileLocation + line)
+        data2 := bus_read(tileLocation + line + 1)
         colorBit := i8(xPos % 8)
         colorBit -= 7
         colorBit *= -1
@@ -293,7 +293,7 @@ ppu_convert_row :: proc(ly: u8) {
 }
 
 ppu_get_color :: proc(colorNum: u8, address: IO) -> u16 {
-    bgp := bus_read8(u16(address))
+    bgp := bus_read(u16(address))
     hi: u8
     lo: u8
 

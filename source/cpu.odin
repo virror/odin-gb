@@ -62,9 +62,9 @@ cpu_get_opcode :: proc(debug: bool) -> (Opcode, u8) {
     if opcode == 0xCB {
         if !debug {
             PC += 1
-            op = cbcodes[bus_read8(PC)]
+            op = cbcodes[bus_read(PC)]
         } else {
-            op = cbcodes[bus_read8(PC + 1)]
+            op = cbcodes[bus_read(PC + 1)]
         }
     } else {
         op = opcodes[opcode]
@@ -210,11 +210,11 @@ getReg :: proc(index: Index) -> u8 {
     case Index.L:
         return reg.L
     case Index.n:
-        value := bus_read8(PC)
+        value := bus_read(PC)
         PC += 1
         return value
     case Index.HL:
-        return bus_read8(reg.HL)
+        return bus_read(reg.HL)
     case:
         return reg.A
     }

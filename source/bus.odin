@@ -109,7 +109,7 @@ bus_dummy :: proc() {
     }
 }
 
-bus_read8 :: proc(address: u16) -> u8 {
+bus_read :: proc(address: u16) -> u8 {
     value: u8
     bus_address = address
     when TEST_ENABLE {
@@ -164,7 +164,7 @@ bus_write :: proc(address: u16, data: u8) {
                 fmt.print(rune(data))
             }
             break
-        case u16(IO.LY):
+        case u16(IO.LY): //Read only
             break
         case u16(IO.DIV):
             memory[address] = 0
