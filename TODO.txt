@@ -1,10 +1,10 @@
+-M-cycle accuracy
+-HALT bug
 -Sprites priority handling
 -Writing to STAT trigger interrupts?
 -Mask STAT bit 7
 -Proper window handling
-
--Run all tests and verify codes
+-Pass ppu tests
 -Sound
-
 -Save/Load states
 -Color support

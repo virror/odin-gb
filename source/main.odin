@@ -77,49 +77,31 @@ main :: proc() {
         time := sdl.GetTicks()
         accumulated_time += f32(time - prev_time) / 1000.0
         prev_time = time
-        //ticks_to_run :u16= 20//evt_check()
-        //ticks = 0
-        //for (ticks < ticks_to_run) {
-            handle_events()
-            input_step()
-            if (!pause || step) && !redraw {
-                //handle_events()
-                cycles := cpu_step()
-                //tmr_update_all(cycles)
-                ticks += cycles
-                //evt_total_ticks += cycles
 
-                redraw = ppu_step(cycles)
+        handle_events()
+        input_step()
+        if (!pause || step) && !redraw {
+            cycles := cpu_step()
+            ticks += cycles
 
-                if step {
-                    step = false
-                    debug_draw()
-                    free_all(context.temp_allocator)
-                }
-            }
-            if pause != last_pause {
+            redraw = ppu_step(cycles)
+
+            if step {
+                step = false
                 debug_draw()
-                last_pause = pause
+                free_all(context.temp_allocator)
             }
+        }
+        if pause != last_pause {
+            debug_draw()
+            last_pause = pause
+        }
 
-            if ((accumulated_time > step_length) && redraw) {
-                // Draw if its time and ppu is ready
-                /*sdl.RenderClear(main_render)
-                texture = draw_main(ppu.getPixels(), texture)
-                sdl.RenderCopy(main_render, texture, NULL, NULL)
-                sdl.RenderPresent(main_render)*/
-                draw_main(ppu_get_pixels())
-                redraw = false
-                //frame_cnt += accumulated_time;
-
-                /*if(frame_cnt > 0.25) { //Update frame counter 4 times/s
-                    frame_cnt = 0;
-                    std::string frames = std::to_string((int)round(1 / accumulated_time));
-                    SDL_SetWindowTitle(main_window, (title + " - " + frames + "fps").c_str());
-                }*/
-                accumulated_time = 0
-            }
-        //}
+        if ((accumulated_time > step_length) && redraw) {
+            draw_main(ppu_get_pixels())
+            redraw = false
+            accumulated_time = 0
+        }
     }
 
 }
