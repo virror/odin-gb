@@ -610,6 +610,12 @@ OC3F :: proc() {
 OC76 :: proc() {
     bus_dummy()
     bus_dummy()
+    iFlags := bus_get(u16(IO.IF))
+    eFlags := bus_get(u16(IO.IE))
+    if(!cpu_getInterrupt() && ((iFlags & eFlags) != 0)) {
+        fmt.println("bug")
+        halt_bug = true
+    }
     halt = true
 }
 
@@ -944,7 +950,7 @@ OCFA :: proc() {
 
 //EI
 OCFB :: proc() {
-    EI = true
+    cpu_setInterrupt(true)
 }
 
 OCA7 :: proc() {

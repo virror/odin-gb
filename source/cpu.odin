@@ -23,15 +23,16 @@ Reg :: struct #raw_union {
 }
 
 reg: Reg
-EI: bool
 cycleMod: u8
 halt: bool
 PC: u16
 SP: u16
 last: Opcode
-interruptEnabled: bool
+IME: bool
 dTimer: u16
 tTimer: u16
+halt_bug: bool
+tima_ovf: bool
 
 cpu_step :: proc() -> u16 {
     op: Opcode
@@ -39,10 +40,6 @@ cpu_step :: proc() -> u16 {
     if !halt {
         op, _ = cpu_get_opcode(false)
         PC += 1
-        if (EI) {
-            interruptEnabled = true
-            EI = false
-        }
         op.func()
         last = op
     } else {
@@ -50,6 +47,9 @@ cpu_step :: proc() -> u16 {
     }
     when(!TEST_ENABLE) {
         cpu_handle_irq()
+        if(tima_ovf) {
+            cpu_tima_irq()
+        }
         cpu_handle_tmr(op.cycles + cycleMod)
     }
     return u16(op.cycles + cycleMod)
@@ -83,8 +83,8 @@ cpu_handle_irq :: proc() {
         for i :u8= 0; i < 5; i += 1 {
             if(bit_test(iFlags, i) && bit_test(eFlags, i)) {
                 halt = false
-                if(interruptEnabled == true) {
-                    interruptEnabled = false
+                if(IME == true) {
+                    IME = false
                     SP -= 1
                     bus_set(SP, u8(PC >> 8))
                     SP -= 1
@@ -134,22 +134,29 @@ cpu_handle_tmr :: proc(cycle: u8) {
             tima := u16(bus_get(u16(IO.TIMA)))
             tima += 1
             if(tima > 255) {
-                tima = u16(bus_get(u16(IO.TMA)))
-                iFlags := IRQ(bus_get(u16(IO.IF)))
-                iFlags.Timer = true
-                bus_set(u16(IO.IF), u8(iFlags)) //Set Timer interrupt flag
+                tima = 0
+                tima_ovf = true
             }
             bus_set(u16(IO.TIMA), u8(tima))
         }
     }
 }
 
+cpu_tima_irq :: proc() {
+    tima := u16(bus_get(u16(IO.TIMA)))
+    tima = u16(bus_get(u16(IO.TMA)))
+    iFlags := IRQ(bus_get(u16(IO.IF)))
+    iFlags.Timer = true
+    bus_set(u16(IO.IF), u8(iFlags)) //Set Timer interrupt flag
+    tima_ovf = false
+}
+
 cpu_setInterrupt :: proc(enabled: bool) {
-    interruptEnabled = enabled
+    IME = enabled
 }
 
 cpu_getInterrupt :: proc() -> bool {
-    return interruptEnabled
+    return IME
 }
 
 //a + b
