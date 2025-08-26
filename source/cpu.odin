@@ -39,7 +39,6 @@ cpu_step :: proc() -> u16 {
     cycleMod = 0
     if !halt {
         op, _ = cpu_get_opcode(false)
-        PC += 1
         op.func()
         last = op
     } else {
@@ -52,17 +51,21 @@ cpu_step :: proc() -> u16 {
         }
         cpu_handle_tmr(op.cycles + cycleMod)
     }
-    return u16(op.cycles + cycleMod)
+}
+
+cpu_fetch :: proc() -> u8 {
+    data := bus_read(PC)
+    PC += 1
+    return data
 }
 
 cpu_get_opcode :: proc(debug: bool) -> (Opcode, u8) {
     op: Opcode
-    opcode := bus_get(PC)
+    opcode := cpu_fetch()
 
     if opcode == 0xCB {
         if !debug {
-            PC += 1
-            op = cbcodes[bus_read(PC)]
+            op = cbcodes[cpu_fetch()]
         } else {
             op = cbcodes[bus_read(PC + 1)]
         }
@@ -217,8 +220,7 @@ getReg :: proc(index: Index) -> u8 {
     case Index.L:
         return reg.L
     case Index.n:
-        value := bus_read(PC)
-        PC += 1
+        value := cpu_fetch()
         return value
     case Index.HL:
         return bus_read(reg.HL)
