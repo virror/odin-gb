@@ -7,7 +7,7 @@ import sdlttf "vendor:sdl2/ttf"
 import sdlimg "vendor:sdl2/image"
 
 SKIP_BIOS :: false
-ROM_PATH :: "tests/bgbtest.GB"
+ROM_PATH :: "tests/bgbtest.gb"
 SERIAL_DEBUG :: true
 
 WIN_WIDTH :: 160
@@ -28,7 +28,7 @@ window: ^sdl.Window
 debug_render: ^sdl.Renderer
 
 main :: proc() {
-    sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMECONTROLLER)
+    sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMECONTROLLER | sdl.INIT_AUDIO)
     defer sdl.Quit()
 
     sdlttf.Init()
@@ -52,6 +52,26 @@ main :: proc() {
 
     //controller := controller_create()
     //defer sdl.GameControllerClose(controller)
+
+    // Audio stuff
+    desired: sdl.AudioSpec
+    obtained: sdl.AudioSpec
+
+    desired.freq = 48000
+    desired.format = sdl.AUDIO_F32
+    desired.channels = 1
+    desired.samples = 64
+    desired.callback = nil//audio_handler
+
+    device := sdl.OpenAudioDevice(
+        nil,
+        false,
+        &desired,
+        &obtained,
+        false,
+    )
+    defer sdl.CloseAudioDevice(device)
+    assert(device != 0, "Failed to create audio device") // TODO: Handle error
 
     debug_init()
     bus_init()
@@ -86,6 +106,7 @@ main :: proc() {
 
             redraw = ppu_step(cycles)
             serial_step(cycles)
+            apu_step()
 
             if step {
                 step = false

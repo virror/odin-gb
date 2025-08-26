@@ -175,6 +175,9 @@ bus_write :: proc(address: u16, data: u8) {
         case u16(IO.BL):
             mem.copy(&memory[0], &romBanks[0], 0x4000)
             break
+        case 0xFF10..=0xFF26:
+            apu_write(address, data)
+            break
         case:
             memory[address] = data
             break
