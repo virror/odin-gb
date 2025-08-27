@@ -51,8 +51,8 @@ main :: proc() {
     debug_render = sdl.CreateRenderer(debug_window, -1, sdl.RENDERER_ACCELERATED)
     defer sdl.DestroyRenderer(debug_render)
 
-    //controller := controller_create()
-    //defer sdl.GameControllerClose(controller)
+    controller := controller_create()
+    defer sdl.GameControllerClose(controller)
 
     // Audio stuff
     desired: sdl.AudioSpec
@@ -100,7 +100,6 @@ main :: proc() {
         prev_time = time
 
         handle_events()
-        input_step()
         if (!pause || step) && !redraw {
             cpu_step()
             redraw = ppu_step(4)
@@ -149,6 +148,7 @@ handle_events :: proc() {
         case sdl.EventType.KEYDOWN:
             handle_dbg_keys(&event)
         }
+        input_process(&event)
     }
 }
 
