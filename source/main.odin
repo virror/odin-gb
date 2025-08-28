@@ -26,6 +26,7 @@ step := false
 @(private="file")
 window: ^sdl.Window
 debug_render: ^sdl.Renderer
+file_name: string
 
 main :: proc() {
     sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMECONTROLLER | sdl.INIT_AUDIO)
@@ -86,6 +87,7 @@ main :: proc() {
     }
 
     bus_load_ROM(ROM_PATH)
+    sdl.SetWindowTitle(window, fmt.caprintf("odin-gb - %s", file_name))
 
     ticks: u16
     step_length :f32= 1.0 / 60.0
@@ -125,7 +127,9 @@ main :: proc() {
             accumulated_time = 0
         }
     }
-
+    if(bus_has_battery()) {
+        bus_save_ram()
+    }
 }
 
 draw_main :: proc(screen_buffer: []u16) {

@@ -4,6 +4,7 @@ import "core:math"
 import "core:mem"
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 
 Mbc :: enum
 {
@@ -255,6 +256,7 @@ bus_load_ROM :: proc(rom: string) {
         assert(err2 == nil, "Failed to read rom data")
     }
     os.close(file)
+    file_name = filepath.short_stem(ROM_PATH)
     
     mem.copy(&memory[0x4000], &romBanks[1][0], 0x4000)
     mbc = Mbc(memory[0x0147])
@@ -304,11 +306,12 @@ bus_rom_switch :: proc(address: u16, data: u8) {
         }
         break
     case Mbc.MBC3,
-         Mbc.MBC3_RAM,
-         Mbc.MBC3_RAM_BAT,
-         Mbc.MBC3_TIM_BAT,
-         Mbc.MBC3_TIM_RAM_BAT:
+         Mbc.MBC3_TIM_BAT:
         data &= 0x7F
+        romBankNr = u16(data) 
+    case Mbc.MBC3_RAM,
+         Mbc.MBC3_RAM_BAT,
+         Mbc.MBC3_TIM_RAM_BAT:
         romBankNr = u16(data)
         if(romBankNr == 0) {
             romBankNr += 1
@@ -353,11 +356,13 @@ bus_ram_switch :: proc(data: u8) {
         //Do nothing, no switch supported
         break
     case Mbc.MBC3,
-         Mbc.MBC3_RAM,
-         Mbc.MBC3_RAM_BAT,
-         Mbc.MBC3_TIM_BAT,
-         Mbc.MBC3_TIM_RAM_BAT:
+         Mbc.MBC3_TIM_BAT:
         data &= 0x03
+        ramBankNr = data
+    case Mbc.MBC3_RAM,
+         Mbc.MBC3_RAM_BAT,
+         Mbc.MBC3_TIM_RAM_BAT:
+        data &= 0x07
         ramBankNr = data
         break
     case Mbc.MBC5,
@@ -375,30 +380,30 @@ bus_has_battery :: proc() -> bool {
 }
 
 bus_save_ram :: proc() {
-    /*if(ramChanged)
-    {
-        string loadName = "Roms/" + romName + ".sav";
-        using (FileStream fs = new FileStream(loadName, FileMode.Create, FileAccess.Write))
-        {
-            for(int i = 0; i < ramBanks.Length; i++)
-            {
-                fs.Write(ramBanks[i], 0, ramBanks[i].Length);
+    if(ramChanged) {
+        path := (filepath.dir(ROM_PATH))
+        save_path := fmt.aprintf("%s/%s.sav", path, file_name)
+        file, err := os.open(save_path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
+        if(err == nil) {
+            for i :u16= 0; i < len(ramBanks); i += 1 {
+                _, err2 := os.write(file, ramBanks[i][:])
+                assert(err2 == nil, "Failed to read rom data")
             }
         }
+        os.close(file)
     }
-    ramChanged = false;*/
+    ramChanged = false
 }
 
 bus_load_ram :: proc() {
-    /*string saveName = "Roms/" + romName + ".sav";
-    if(File.Exists(saveName))
-    {
-        using (FileStream fs = new FileStream(saveName, FileMode.Open, FileAccess.Read))
-        {
-            for(int i = 0; i < ramBanks.Length; i++)
-            {
-                fs.Read(ramBanks[i], 0, ramBanks[i].Length);
-            }
+    path := (filepath.dir(ROM_PATH))
+    load_path := fmt.aprintf("%s/%s.sav", path, file_name)
+    file, err := os.open(load_path, os.O_RDONLY)
+    if(err == nil) {
+        for i :u16= 0; i < len(ramBanks); i += 1 {
+            _, err2 := os.read(file, ramBanks[i][:])
+            assert(err2 == nil, "Failed to read rom data")
         }
-    }*/
+    }
+    os.close(file)
 }
