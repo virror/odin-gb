@@ -89,7 +89,6 @@ main :: proc() {
     bus_load_ROM(ROM_PATH)
     sdl.SetWindowTitle(window, fmt.caprintf("odin-gb - %s", file_name))
 
-    ticks: u16
     step_length :f32= 1.0 / 60.0
     accumulated_time: f32
     prev_time := sdl.GetTicks()
@@ -103,11 +102,9 @@ main :: proc() {
         handle_events()
         input_step()
         if (!pause || step) && !redraw {
-            cycles := cpu_step()
-            ticks += cycles
-
-            redraw = ppu_step(cycles)
-            serial_step(cycles)
+            cpu_step()
+            redraw = ppu_step(4)
+            serial_step(4)
             apu_step()
 
             if step {

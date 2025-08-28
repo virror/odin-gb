@@ -116,6 +116,20 @@ test_run :: proc(json_data: Json_data) {
     cycle = 0
     error_string = ""
     cpu_step()
+    if(state.cb) {
+        cpu_step()
+        if(state.op.cycles > 2) {
+            for i:u8=2; i < state.op.cycles; i += 1 {
+                cpu_step()
+            }
+        }
+    } else {
+        if(state.op.cycles > 1) {
+            for i:u8=1; i < state.op.cycles; i += 1 {
+                cpu_step()
+            }
+        }
+    }
 
     //Compare results
     if reg.A != json_data.final.a {

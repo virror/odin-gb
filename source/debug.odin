@@ -26,14 +26,13 @@ debug_draw :: proc() {
     debug_draw_flag("C  ", reg.F.C, 150, 85)
 
     debug_draw_op("->", PC, 10, 210)
-    //debug_draw_op("  ", PC + 2, 10, 235)
 
     sdl.RenderPresent(debug_render)
 }
 
 debug_draw_op :: proc(opText: cstring, pc: u16, posX: i32, posY: i32) {
-    op, opcode := cpu_get_opcode(true)
-    line := fmt.caprintf("%x %s", opcode, op.desc)
+    op := state.op
+    line := fmt.caprintf("%x %s", state.number, op.desc)
     debug_text(line, posX, posY, {230, 230, 230, 230})
 }
 

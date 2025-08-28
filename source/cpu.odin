@@ -9,6 +9,14 @@ Opcode :: struct {
 	desc: cstring,
 }
 
+State :: struct {
+    op: Opcode,
+    cycle: u8,
+    value: u16,
+    cb: bool,
+    number: u8,
+}
+
 Flags :: bit_field u8 {
     unused: u8  | 4,
     C: bool     | 1,
@@ -23,33 +31,41 @@ Reg :: struct #raw_union {
 }
 
 reg: Reg
-cycleMod: u8
 halt: bool
 PC: u16
 SP: u16
-last: Opcode
 IME: bool
 dTimer: u16
 tTimer: u16
 halt_bug: bool
 tima_ovf: bool
+state: State
 
-cpu_step :: proc() -> u16 {
-    op: Opcode
-    cycleMod = 0
-    if !halt {
-        op, _ = cpu_get_opcode(false)
-        op.func()
-        last = op
+cpu_step :: proc() {
+    if(!halt) {
+        if(state.cycle == state.op.cycles || state.cb) {
+            state.op = cpu_get_opcode()
+            if((!state.cb && state.op.cycles == 1) || (state.cb && state.op.cycles == 2)) {
+                state.op.func()
+            }
+            if(state.cycle == 2) {
+                state.cb = false
+            }
+        } else {
+            state.op.func()
+            state.cycle += 1
+        }
     } else {
-        op = opcodes[0x00] //If HALT, NOP
+        opcodes[0x00].func() //If HALT, NOP
     }
     when(!TEST_ENABLE) {
-        cpu_handle_irq()
         if(tima_ovf) {
             cpu_tima_irq()
         }
-        cpu_handle_tmr(op.cycles + cycleMod)
+        cpu_handle_tmr()
+        if(state.cycle == state.op.cycles) {
+            cpu_handle_irq()
+        }
     }
 }
 
@@ -59,23 +75,25 @@ cpu_fetch :: proc() -> u8 {
     return data
 }
 
-cpu_get_opcode :: proc(debug: bool) -> (Opcode, u8) {
+cpu_get_opcode :: proc() -> Opcode {
     op: Opcode
+    
     opcode := cpu_fetch()
-
-    if opcode == 0xCB {
-        if !debug {
-            op = cbcodes[cpu_fetch()]
-        } else {
-            op = cbcodes[bus_read(PC + 1)]
-        }
+    if(state.cb) { 
+        op = cbcodes[opcode]
+        state.cycle += 1
     } else {
         op = opcodes[opcode]
+        state.cycle = 1
+        if(opcode == 0xCB) {
+            state.cb = true
+        }
     }
-    if op.func == nil {
+    if(op.func == nil && opcode != 0xCB) {
         fmt.println("Unknown opcode: ", opcode)
     }
-    return op, opcode
+    state.number = opcode
+    return op
 }
 
 cpu_handle_irq :: proc() {
@@ -94,16 +112,15 @@ cpu_handle_irq :: proc() {
                     bus_set(SP, u8(PC))
                     bus_set(u16(IO.IF), (iFlags & ~(1 << i)))
                     PC = 0x0040 + u16(i) * 0x8 //TODO: Must fix for multiple interrupts, lowest priority first
-                    cycleMod += 20
                 }
             }
         }
     }
 }
 
-cpu_handle_tmr :: proc(cycle: u8) {
+cpu_handle_tmr :: proc() {
     //div timer
-    dTimer += u16(cycle)
+    dTimer += 4
     if(dTimer >= 256) {
         dTimer -= 256
         div := bus_get(u16(IO.DIV))
@@ -114,7 +131,7 @@ cpu_handle_tmr :: proc(cycle: u8) {
     //tima timer
     tac := bus_get(u16(IO.TAC))
     if(bit_test(tac, 2)) {	//Timer enabled
-        tTimer += u16(cycle)
+        tTimer += 4
         tSpeed := tac & 0x03
         compare :u16= 1024
         switch (tSpeed)
