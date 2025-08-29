@@ -594,8 +594,8 @@ OC76 :: proc() {
         bus_dummy()
     case 2:
         bus_dummy()
-        iFlags := bus_get(u16(IO.IF)) & 0x1F//MASK IN BUS!
-        eFlags := bus_get(u16(IO.IE)) & 0x1F
+        iFlags := bus_read(u16(IO.IF))
+        eFlags := bus_read(u16(IO.IE))
         if(!cpu_getInterrupt() && ((iFlags & eFlags) != 0)) {
             halt_bug = true
         } else {

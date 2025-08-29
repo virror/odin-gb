@@ -101,8 +101,8 @@ cpu_get_opcode :: proc() -> Opcode {
 }
 
 cpu_handle_irq :: proc() {
-    iFlags := bus_get(u16(IO.IF))
-    eFlags := bus_get(u16(IO.IE))
+    iFlags := bus_read(u16(IO.IF))
+    eFlags := bus_read(u16(IO.IE))
 
     if(iFlags != 0) {
         for i :u8= 0; i < 5; i += 1 {

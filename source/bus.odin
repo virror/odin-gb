@@ -123,7 +123,7 @@ bus_read :: proc(address: u16) -> u8 {
             } else {
                 value = 0xFF
             }
-        case 0xFF0F:
+        case u16(IO.IF):
             value = memory[address] | 0xE0
         case:
             value = memory[address]
