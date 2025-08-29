@@ -594,7 +594,13 @@ OC76 :: proc() {
         bus_dummy()
     case 2:
         bus_dummy()
-        halt = true
+        iFlags := bus_get(u16(IO.IF)) & 0x1F//MASK IN BUS!
+        eFlags := bus_get(u16(IO.IE)) & 0x1F
+        if(!cpu_getInterrupt() && ((iFlags & eFlags) != 0)) {
+            halt_bug = true
+        } else {
+            halt = true
+        }
     }
 }
 
@@ -1673,11 +1679,9 @@ RST :: proc(address: u16) {
     case 1:
         bus_dummy()
     case 2:
-        SP -= 1
-        bus_write(SP, u8(PC >> 8))
+        Push(u8(PC >> 8))
     case 3:
-        SP -= 1
-        bus_write(SP, u8(PC))
+        Push(u8(PC))
         PC = address
     }
 }

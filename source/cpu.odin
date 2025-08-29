@@ -32,12 +32,12 @@ Reg :: struct #raw_union {
 
 reg: Reg
 halt: bool
+halt_bug: bool
 PC: u16
 SP: u16
 IME: bool
 dTimer: u16
 tTimer: u16
-halt_bug: bool
 tima_ovf: bool
 state: State
 
@@ -79,6 +79,10 @@ cpu_get_opcode :: proc() -> Opcode {
     op: Opcode
     
     opcode := cpu_fetch()
+    if(halt_bug) {
+        PC -= 1
+        halt_bug = false
+    }
     if(state.cb) { 
         op = cbcodes[opcode]
         state.cycle += 1
@@ -106,12 +110,10 @@ cpu_handle_irq :: proc() {
                 halt = false
                 if(IME == true) {
                     IME = false
-                    SP -= 1
-                    bus_set(SP, u8(PC >> 8))
-                    SP -= 1
-                    bus_set(SP, u8(PC))
+                    Push(u8(PC >> 8))
+                    Push(u8(PC))
                     bus_set(u16(IO.IF), (iFlags & ~(1 << i)))
-                    PC = 0x0040 + u16(i) * 0x8 //TODO: Must fix for multiple interrupts, lowest priority first
+                    PC = 0x0040 + u16(i) * 0x8
                 }
             }
         }
@@ -195,11 +197,6 @@ cpu_setCarryAdd16 :: proc(a: u16, b: u16) {
 }
 
 //a + b
-cpu_setCarrySub16 :: proc(a: u16, b: u16) {
-    reg.F.C = b > a
-}
-
-//a + b
 cpu_setHalfAdd8 :: proc(a: u8, b: u8) {
     reg.F.H = (((a & 0x0F) + (b & 0x0F)) & 0x10) == 0x10
 }
@@ -212,11 +209,6 @@ cpu_setHalfSub8 :: proc(a: u8, b: u8) {
 //a + b
 cpu_setHalfAdd16 :: proc(a: u16, b: u16) {
     reg.F.H = (((a & 0xFFF) + (b & 0xFFF)) & 0x1000) == 0x1000
-}
-
-//a - b
-cpu_setHalfSub16 :: proc(a: u16, b: u16) {
-    reg.F.H = (b & 0xFF) > (a & 0xFF)
 }
 
 getReg :: proc(index: Index) -> u8 {
