@@ -163,9 +163,9 @@ test_run :: proc(json_data: Json_data) {
         error_string = fmt.aprintf("Fail: SP is %d should be %d", SP, json_data.final.sp)
     }
 
-    cycle_cnt := u32(len(json_data.cycles))
-    if(cycle != cycle_cnt) {
-        error_string = fmt.aprintf("Fail: Cycle count is %d should be %d", cycle, cycle_cnt)
+    cycle_cnt := u8(len(json_data.cycles))
+    if(state.cycle != cycle_cnt) {
+        error_string = fmt.aprintf("Fail: Cycle count is %d should be %d", state.cycle, cycle_cnt)
     }
 
     if error_string != "" {

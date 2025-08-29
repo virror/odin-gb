@@ -40,7 +40,7 @@ opcodes: [256]Opcode = {
     {OC15, 1, 0, "DEC D"},
     {OC16, 2, 1, "LD D, n"},
     {OC17, 1, 0, "RLA"},
-    {OC18, 3, 1, "JR n"},
+    {OC18, 2, 1, "JR n"},
     {OC19, 2, 0, "ADD HL, DE"},
     {OC1A, 2, 0, "LD A, (DE)"},
     {OC1B, 2, 0, "DEC DE"},
@@ -211,7 +211,7 @@ opcodes: [256]Opcode = {
     {OCC0, 2, 0, "RET NZ"},
     {OCC1, 3, 0, "POP BC"},
     {OCC2, 3, 2, "JP NZ, nn"},
-    {OCC3, 4, 2, "JP, nn"},
+    {OCC3, 3, 2, "JP, nn"},
     {OCC4, 3, 2, "CALL NZ, nn"},
     {OCC5, 4, 0, "PUSH BC"},
     {OCC6, 2, 1, "ADD A, n"},
@@ -221,7 +221,7 @@ opcodes: [256]Opcode = {
     {OCCA, 3, 2, "JP Z, nn"},
     {nil , 1, 0, "N/A"},
     {OCCC, 3, 2, "CALL Z, nn"},
-    {OCCD, 6, 2, "CALL, nn"},
+    {OCCD, 3, 2, "CALL, nn"},
     {OCCE, 2 ,1, "ADC A, n"},
     {OCCF, 4, 0, "RST 0x08"},
     {OCD0, 2, 0, "RET NC"},
@@ -325,15 +325,6 @@ OC08 :: proc() {
     }
 }
 
-//ADD HL, BC
-OC09 :: proc() {
-    bus_dummy()
-    reg.F.N = false
-    cpu_setHalfAdd16(reg.HL, reg.BC)
-    cpu_setCarryAdd16(reg.HL, reg.BC)
-    reg.HL += reg.BC
-}
-
 //LD A, (BC)
 OC0A :: proc() {
     reg.A = bus_read(reg.BC)
@@ -401,26 +392,6 @@ OC17 :: proc() {
     reg.F.H = false
     reg.F.C = bit_test(value, 7)
     reg.F.Z = false
-}
-
-//JR n
-OC18 :: proc() {
-    switch(state.cycle) {
-    case 1:
-        pc := PC
-        PC = u16(i16(PC) + i16(i8(bus_read(pc))) + 1)
-    case 2:
-        bus_dummy()
-    }
-}
-
-//ADD HL, DE
-OC19 :: proc() {
-    bus_dummy()
-    reg.F.N = false
-    cpu_setHalfAdd16(reg.HL, reg.DE)
-    cpu_setCarryAdd16(reg.HL, reg.DE)
-    reg.HL += reg.DE
 }
 
 //LD A, (DE)
@@ -491,15 +462,6 @@ OC27 :: proc() {
     reg.F.H = false // h flag is always cleared
 }
 
-//ADD HL, HL
-OC29 :: proc() {
-    bus_dummy()
-    reg.F.N = false
-    cpu_setHalfAdd16(reg.HL, reg.HL)
-    cpu_setCarryAdd16(reg.HL, reg.HL)
-    reg.HL += reg.HL
-}
-
 //LD A, (HL+)
 OC2A :: proc() {
     reg.A = bus_read(reg.HL)
@@ -559,15 +521,6 @@ OC37 :: proc() {
     reg.F.C = true
 }
 
-//ADD HL, SP
-OC39 :: proc() {
-    bus_dummy()
-    reg.F.N = false
-    cpu_setHalfAdd16(reg.HL, SP)
-    cpu_setCarryAdd16(reg.HL, SP)
-    reg.HL += SP
-}
-
 //LD A, (HL-)
 OC3A :: proc() {
     reg.A = bus_read(reg.HL)
@@ -594,13 +547,13 @@ OC76 :: proc() {
         bus_dummy()
     case 2:
         bus_dummy()
-        iFlags := bus_read(IO_IF)
+        /*iFlags := bus_read(IO_IF)
         eFlags := bus_read(IO_IE)
         if(!cpu_getInterrupt() && (((iFlags & eFlags) & 0x1F) != 0)) {
             halt_bug = true
         } else {
             halt = true
-        }
+        }*/
     }
 }
 
@@ -614,33 +567,6 @@ OCC1 :: proc() {
     }
 }
 
-//JP NZ, nn
-OCC2 :: proc() {
-    switch(state.cycle) {
-    case 1:
-        state.value = u16(cpu_fetch())
-    case 2:
-        state.value += u16(cpu_fetch()) << 8
-        if(reg.F.Z == false) {
-            bus_dummy()
-            PC = state.value
-        }
-    }
-}
-
-//JP nn
-OCC3 :: proc() {
-    switch(state.cycle) {
-    case 1:
-        state.value = u16(cpu_fetch())
-    case 2:
-        state.value += u16(cpu_fetch()) << 8
-    case 3:
-        bus_dummy()
-        PC = state.value
-    }
-}
-
 //PUSH BC
 OCC5 :: proc() {
     switch(state.cycle) {
@@ -650,28 +576,6 @@ OCC5 :: proc() {
         Push(reg.B)
     case 3:
         Push(reg.C)
-    }
-}
-
-//RET NZ
-OCC0 :: proc() {
-    bus_dummy() //Dummy
-    if(reg.F.Z == false) {
-        pc := u16(Pop())
-        pc += u16(Pop()) << 8
-        PC = pc
-        bus_dummy()
-    }
-}
-
-//RET Z
-OCC8 :: proc() {
-    bus_dummy()
-    if(reg.F.Z == true) {
-        pc := u16(Pop())
-        pc += u16(Pop()) << 8
-        bus_dummy()
-        PC = pc
     }
 }
 
@@ -688,48 +592,6 @@ OCC9 :: proc() {
     }
 }
 
-//JP Z, nn
-OCCA :: proc() {
-    switch(state.cycle) {
-    case 1:
-        state.value = u16(cpu_fetch())
-    case 2:
-        state.value += u16(cpu_fetch()) << 8
-        if(reg.F.Z == true) {    
-            bus_dummy()
-            PC = state.value
-        }
-    }
-}
-
-//CALL nn
-OCCD :: proc() {
-    switch(state.cycle) {
-    case 1:
-        state.value = u16(cpu_fetch())
-    case 2:
-        state.value += u16(cpu_fetch()) << 8
-    case 3:
-        bus_dummy()
-    case 4:
-        Push(u8(PC >> 8))
-    case 5:
-        Push(u8(PC))
-        PC = state.value
-    }
-}
-
-//RET NC
-OCD0 :: proc() {
-    bus_dummy()
-    if(reg.F.C == false) {
-        pc := u16(Pop())
-        pc += u16(Pop()) << 8
-        bus_dummy()
-        PC = pc
-    }
-}
-
 //POP DE
 OCD1 :: proc() {
     switch(state.cycle) {
@@ -737,20 +599,6 @@ OCD1 :: proc() {
         reg.E = Pop()
     case 2:
         reg.D = Pop()
-    }
-}
-
-//JP NC, nn
-OCD2 :: proc() {
-    switch(state.cycle) {
-    case 1:
-        state.value = u16(cpu_fetch())
-    case 2:
-        state.value += u16(cpu_fetch()) << 8
-        if(reg.F.C == false) { 
-            bus_dummy()
-            PC = state.value
-        }
     }
 }
 
@@ -766,17 +614,6 @@ OCD5 :: proc() {
     }
 }
 
-//RET C
-OCD8 :: proc() {
-    bus_dummy()
-    if(reg.F.C == true) {
-        pc := u16(Pop())
-        pc += u16(Pop()) << 8
-        bus_dummy()
-        PC = pc
-    }
-}
-
 //RETI
 OCD9 :: proc() {
     switch(state.cycle) {
@@ -788,20 +625,6 @@ OCD9 :: proc() {
         bus_dummy()
         PC = state.value
         cpu_setInterrupt(true)
-    }
-}
-
-//JP C, nn
-OCDA :: proc() {
-    switch(state.cycle) {
-    case 1:
-        state.value = u16(cpu_fetch())
-    case 2:
-        state.value += u16(cpu_fetch()) << 8
-        if(reg.F.C == true) {
-            bus_dummy()
-            PC = state.value
-        }
     }
 }
 
@@ -1497,6 +1320,9 @@ OC30 :: proc() {
 OC38 :: proc() {
     JRxx(reg.F.C == true)
 }
+OC18 :: proc() {
+    JRxx(true)
+}
 OCC4 :: proc() {
     CALLxx(reg.F.Z == false)
 }
@@ -1508,6 +1334,48 @@ OCD4 :: proc() {
 }
 OCDC :: proc() {
     CALLxx(reg.F.C == true)
+}
+OCCD :: proc() {
+    CALLxx(true)
+}
+OCC0 :: proc() {
+    RETxx(reg.F.Z == false)
+}
+OCD8 :: proc() {
+    RETxx(reg.F.C == true)
+}
+OCD0 :: proc() {
+    RETxx(reg.F.C == false)
+}
+OCC8 :: proc() {
+    RETxx(reg.F.Z == true)
+}
+OCC2 :: proc() {
+    JPxx(reg.F.Z == false)
+}
+OCDA :: proc() {
+    JPxx(reg.F.C == true)
+}
+OCD2 :: proc() {
+    JPxx(reg.F.C == false)
+}
+OCCA :: proc() {
+    JPxx(reg.F.Z == true)
+}
+OCC3 :: proc() {
+    JPxx(true)
+}
+OC09 :: proc() {
+    ADD_HLxx(reg.BC)
+}
+OC39 :: proc() {
+    ADD_HLxx(SP)
+}
+OC29 :: proc() {
+    ADD_HLxx(reg.HL)
+}
+OC19 :: proc() {
+    ADD_HLxx(reg.DE)
 }
 
 ADCx :: proc(index: Index) {
@@ -1650,9 +1518,14 @@ SUBx :: proc(index: Index) {
 
 //JR XX, n
 JRxx :: proc(cond: bool) {
-    pc := i16(i8(cpu_fetch()))
-    if(cond) {
-        PC = u16(i16(PC) + pc)
+    switch(state.cycle) {
+    case 1:
+        state.value = u16(i16(i8(cpu_fetch())))
+        if(cond) {
+            state.op.cycles += 1
+        }
+    case 2:
+        PC = u16(i16(PC) + i16(state.value))
         bus_dummy()
     }
 }
@@ -1665,12 +1538,59 @@ CALLxx :: proc(cond: bool) {
     case 2:
         state.value += u16(cpu_fetch()) << 8
         if(cond) {
-            bus_dummy()
-            Push(u8(PC >> 8))
-            Push(u8(PC))
-            PC = state.value
+            state.op.cycles += 3
         }
+    case 3:
+        bus_dummy()
+    case 4:
+        Push(u8(PC >> 8))
+    case 5:
+        Push(u8(PC))
+        PC = state.value
     }
+}
+
+//RET XX
+RETxx :: proc(cond: bool) {
+    switch(state.cycle) {
+    case 1:
+        bus_dummy()
+        if(cond) {
+            state.op.cycles += 3
+        }
+    case 2:
+        state.value = u16(Pop())
+    case 3:
+        state.value += u16(Pop()) << 8
+    case 4:
+        bus_dummy()
+        PC = state.value
+    }
+}
+
+//JP XX, nn
+JPxx :: proc(cond: bool) {
+    switch(state.cycle) {
+    case 1:
+        state.value = u16(cpu_fetch())
+    case 2:
+        state.value += u16(cpu_fetch()) << 8
+        if(cond) {
+            state.op.cycles += 1
+        }
+    case 3:
+        bus_dummy()
+        PC = state.value
+    }
+}
+
+//ADD HL, XX
+ADD_HLxx :: proc(register: u16) {
+    bus_dummy()
+    reg.F.N = false
+    cpu_setHalfAdd16(reg.HL, register)
+    cpu_setCarryAdd16(reg.HL, register)
+    reg.HL += register
 }
 
 //RST
