@@ -179,6 +179,22 @@ cpu_getInterrupt :: proc() -> bool {
     return IME
 }
 
+cpu_disable_bootloader :: proc() {
+    PC = 0x100
+    SP = 0xFFFE
+    reg.AF = 0x01B0
+    reg.BC = 0x0013
+    reg.DE = 0x00D8
+    reg.HL = 0x014D
+    bus_write(IO_BL, 0x01)
+    bus_write(IO_LCDC, 0x91)
+    bus_write(IO_STAT, 0x81)
+    bus_write(IO_LY, 0x91)
+    bus_write(IO_IF, 0xE1)
+    bus_write(IO_DIV, 0x18)
+    bus_write(IO_BGP, 0xFC)
+}
+
 //a + b
 cpu_setCarryAdd8 :: proc(a: u8, b: u8) {
     reg.F.C = (a + b) < a

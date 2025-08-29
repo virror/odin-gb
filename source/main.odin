@@ -83,7 +83,7 @@ main :: proc() {
     }
 
     when SKIP_BIOS {
-        disable_bootloader()
+        cpu_disable_bootloader()
     }
 
     bus_load_ROM(ROM_PATH)
@@ -162,11 +162,4 @@ handle_dbg_keys :: proc(event: ^sdl.Event) {
     case sdl.Keycode.ESCAPE:
         exit = true
     }
-}
-
-disable_bootloader :: proc() {
-    bus_write(IO_BL, 1)
-    bus_set(IO_LCDC, 0x91)
-    PC = 0x100
-    SP = 0xFFFE
 }
