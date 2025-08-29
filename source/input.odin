@@ -104,14 +104,14 @@ input_process :: proc(event: ^sdl.Event) {
 
 input_set_key :: proc(key: u8) {
     keyState &= key
-    iFlags := IRQ(bus_get(u16(IO.IF)))
+    iFlags := IRQ(bus_get(IO_IF))
     iFlags.Joypad = true
-	bus_write(u16(IO.IF), u8(iFlags))
+	bus_write(IO_IF, u8(iFlags))
 }
 
 input_clear_key :: proc(key: u8) {
     keyState |= key
-    iFlags := IRQ(bus_get(u16(IO.IF)))
+    iFlags := IRQ(bus_get(IO_IF))
     iFlags.Joypad = true
-	bus_write(u16(IO.IF), u8(iFlags))
+	bus_write(IO_IF, u8(iFlags))
 }

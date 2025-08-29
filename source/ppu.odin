@@ -49,10 +49,10 @@ ppu_reset :: proc() {
 
 ppu_step :: proc(cycle: u16) -> bool {
     retval: bool
-    lcdc := Llcd(bus_get(u16(IO.LCDC)))
-    status := Status(bus_get(u16(IO.STAT)))
-    iFlags := IRQ(bus_get(u16(IO.IF)))
-    ly := bus_get(u16(IO.LY))
+    lcdc := Llcd(bus_get(IO_LCDC))
+    status := Status(bus_get(IO_STAT))
+    iFlags := IRQ(bus_get(IO_IF))
+    ly := bus_get(IO_LY)
     
     if(!lcdc.lcd_enable) {	//LCD is off, dont draw, reset display
         ppu_reset_LCD(status)
@@ -103,20 +103,20 @@ ppu_step :: proc(cycle: u16) -> bool {
         break
     }
 
-    bus_write(u16(IO.STAT), u8(status))
-    bus_write(u16(IO.IF), u8(iFlags))
+    bus_write(IO_STAT, u8(status))
+    bus_write(IO_IF, u8(iFlags))
     return retval
 }
 
 ppu_reset_LCD :: proc(stat: Status) {
     scanlineCounter = 204
-    bus_set(u16(IO.LY), 0)
+    bus_set(IO_LY, 0)
     stat1 := u8(stat) & 0xFC
-    bus_write(u16(IO.STAT), stat1)
+    bus_write(IO_STAT, stat1)
 }
 
 ppu_set_ly :: proc(ly: u8, status: ^Status, iflags: ^IRQ) {
-    if (ly == bus_get(u16(IO.LYC))) {
+    if (ly == bus_get(IO_LYC)) {
         status.lyc_ly = true
         if(status.lyc) {
             iflags.lcdc = true
@@ -124,7 +124,7 @@ ppu_set_ly :: proc(ly: u8, status: ^Status, iflags: ^IRQ) {
     } else {
         status.lyc_ly = false
     }
-    bus_set(u16(IO.LY), ly)
+    bus_set(IO_LY, ly)
 }
 
 ppu_draw_scanline :: proc(lcdc: Llcd, ly: u8) {
@@ -194,7 +194,7 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
                     continue
                 }
 
-                //obp := (bit_test(flags, 4)?IO.OBP1:IO.OBP0)
+                //obp := (bit_test(flags, 4)?IO_OBP1:IO_OBP0)
                 //color := ppu_get_color(colorNum, obp)
                 screenRow[pixPos] = (bit_test(flags, 4)?colorNum + 8:colorNum + 4)
             }
@@ -203,10 +203,10 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
 }
 
 ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
-    scy := bus_read(u16(IO.SCY))
-    scx := bus_read(u16(IO.SCX))
-    wy := bus_read(u16(IO.WY))
-    wx := i16(i8(bus_read(u16(IO.WX)) - 7))
+    scy := bus_read(IO_SCY)
+    scx := bus_read(IO_SCX)
+    wy := bus_read(IO_WY)
+    wx := i16(i8(bus_read(IO_WX) - 7))
     yPos: u8
     backMem: u16
     window: bool
@@ -282,17 +282,17 @@ ppu_convert_row :: proc(ly: u8) {
         color: u16
         pixelColor := screenRow[x]
         if(pixelColor < 4) {
-            color = ppu_get_color(pixelColor, IO.BGP)
+            color = ppu_get_color(pixelColor, IO_BGP)
         } else if(pixelColor < 8) {
-            color = ppu_get_color((pixelColor - 4), IO.OBP0)
+            color = ppu_get_color((pixelColor - 4), IO_OBP0)
         } else {
-            color = ppu_get_color((pixelColor - 8), IO.OBP1)
+            color = ppu_get_color((pixelColor - 8), IO_OBP1)
         }
         screen_buffer[u16(x) + (u16(ly) * u16(WIN_WIDTH))] = color
     }
 }
 
-ppu_get_color :: proc(colorNum: u8, address: IO) -> u16 {
+ppu_get_color :: proc(colorNum: u8, address: u16) -> u16 {
     bgp := bus_read(u16(address))
     hi: u8
     lo: u8

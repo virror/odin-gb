@@ -7,7 +7,7 @@ import sdlttf "vendor:sdl2/ttf"
 import sdlimg "vendor:sdl2/image"
 
 SKIP_BIOS :: false
-ROM_PATH :: "tests/bgbtest.gb"
+ROM_PATH :: "roms/Legend of Zelda, The - Link's Awakening (USA, Europe).gb"
 SERIAL_DEBUG :: true
 
 WIN_WIDTH :: 160
@@ -165,8 +165,8 @@ handle_dbg_keys :: proc(event: ^sdl.Event) {
 }
 
 disable_bootloader :: proc() {
-    bus_write(u16(IO.BL), 1)
-    bus_set(u16(IO.LCDC), 0x91)
+    bus_write(IO_BL, 1)
+    bus_set(IO_LCDC, 0x91)
     PC = 0x100
     SP = 0xFFFE
 }

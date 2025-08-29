@@ -13,15 +13,15 @@ serial_step :: proc(cycle: u16) {
             tranferCounter += 1
             if(tranferCounter >= 8) { //Transfer done
                 tranferCounter = 0
-                bus_set(u16(IO.SB), 0xFF)
-                bus_set(u16(IO.SC), 0)
-                iFlags := IRQ(bus_get(u16(IO.IF)))
+                bus_set(IO_SB, 0xFF)
+                bus_set(IO_SC, 0)
+                iFlags := IRQ(bus_get(IO_IF))
                 iFlags.Serial = true
-                bus_write(u16(IO.IF), u8(iFlags))
+                bus_write(IO_IF, u8(iFlags))
             }
         }
     } else {
-        sc := bus_get(u16(IO.SC))
+        sc := bus_get(IO_SC)
         if(bit_test(sc, 7)) {
             tranferCounter = 1 //Start transfer
         }

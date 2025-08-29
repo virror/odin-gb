@@ -101,20 +101,18 @@ cpu_get_opcode :: proc() -> Opcode {
 }
 
 cpu_handle_irq :: proc() {
-    iFlags := bus_read(u16(IO.IF))
-    eFlags := bus_read(u16(IO.IE))
+    iFlags := bus_read(IO_IF)
+    eFlags := bus_read(IO_IE)
 
-    if(iFlags != 0) {
-        for i :u8= 0; i < 5; i += 1 {
-            if(bit_test(iFlags, i) && bit_test(eFlags, i)) {
-                halt = false
-                if(IME == true) {
-                    IME = false
-                    Push(u8(PC >> 8))
-                    Push(u8(PC))
-                    bus_set(u16(IO.IF), (iFlags & ~(1 << i)))
-                    PC = 0x0040 + u16(i) * 0x8
-                }
+    for i :u8= 0; i < 5; i += 1 {
+        if(bit_test(iFlags, i) && bit_test(eFlags, i)) {
+            halt = false
+            if(IME == true) {
+                IME = false
+                Push(u8(PC >> 8))
+                Push(u8(PC))
+                bus_set(IO_IF, (iFlags & ~(1 << i)))
+                PC = 0x0040 + u16(i) * 0x8
             }
         }
     }
@@ -125,13 +123,13 @@ cpu_handle_tmr :: proc() {
     dTimer += 4
     if(dTimer >= 256) {
         dTimer -= 256
-        div := bus_get(u16(IO.DIV))
+        div := bus_get(IO_DIV)
         div += 1
-        bus_set(u16(IO.DIV), div)
+        bus_set(IO_DIV, div)
     }
 
     //tima timer
-    tac := bus_get(u16(IO.TAC))
+    tac := bus_get(IO_TAC)
     if(bit_test(tac, 2)) {	//Timer enabled
         tTimer += 4
         tSpeed := tac & 0x03
@@ -153,23 +151,23 @@ cpu_handle_tmr :: proc() {
         }
         if(tTimer >= compare) {
             tTimer -= compare
-            tima := u16(bus_get(u16(IO.TIMA)))
+            tima := u16(bus_get(IO_TIMA))
             tima += 1
             if(tima > 255) {
                 tima = 0
                 tima_ovf = true
             }
-            bus_set(u16(IO.TIMA), u8(tima))
+            bus_set(IO_TIMA, u8(tima))
         }
     }
 }
 
 cpu_tima_irq :: proc() {
-    tima := u16(bus_get(u16(IO.TIMA)))
-    tima = u16(bus_get(u16(IO.TMA)))
-    iFlags := IRQ(bus_get(u16(IO.IF)))
+    tima := u16(bus_get(IO_TIMA))
+    tima = u16(bus_get(IO_TMA))
+    iFlags := IRQ(bus_get(IO_IF))
     iFlags.Timer = true
-    bus_set(u16(IO.IF), u8(iFlags)) //Set Timer interrupt flag
+    bus_set(IO_IF, u8(iFlags)) //Set Timer interrupt flag
     tima_ovf = false
 }
 

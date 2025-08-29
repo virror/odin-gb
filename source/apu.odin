@@ -10,63 +10,63 @@ apu_step :: proc() {
 
 apu_write :: proc(address: u16, data: u8) {
     switch(address) {
-    case u16(IO.NR10):
+    case IO_NR10:
         break
-    case u16(IO.NR11):
+    case IO_NR11:
         break
-    case u16(IO.NR12):
+    case IO_NR12:
         if((data & 0xF0) == 0) {
             dac_enable[0] = false
         }
         memory[address] = data
         break
-    case u16(IO.NR13):
+    case IO_NR13:
         break
-    case u16(IO.NR14):
+    case IO_NR14:
         break
-    case u16(IO.NR21):
+    case IO_NR21:
         break
-    case u16(IO.NR22):
+    case IO_NR22:
         if((data & 0xF0) == 0) {
             dac_enable[1] = false
         }
         memory[address] = data
         break
-    case u16(IO.NR23):
+    case IO_NR23:
         break
-    case u16(IO.NR24):
+    case IO_NR24:
         break
-    case u16(IO.NR30):
+    case IO_NR30:
         if(bit_get(data, 7) > 0) {
             dac_enable[2] = false
         }
         memory[address] = data
         break
-    case u16(IO.NR31):
+    case IO_NR31:
         break
-    case u16(IO.NR32):
+    case IO_NR32:
         break
-    case u16(IO.NR33):
+    case IO_NR33:
         break
-    case u16(IO.NR34):
+    case IO_NR34:
         break
-    case u16(IO.NR41):
+    case IO_NR41:
         break
-    case u16(IO.NR42):
+    case IO_NR42:
         if((data & 0xF0) == 0) {
             dac_enable[3] = false
         }
         memory[address] = data
         break
-    case u16(IO.NR43):
+    case IO_NR43:
         break
-    case u16(IO.NR44):
+    case IO_NR44:
         break
-    case u16(IO.NR50):
+    case IO_NR50:
         break
-    case u16(IO.NR51):
+    case IO_NR51:
         break
-    case u16(IO.NR52):
+    case IO_NR52:
         if(bit_get(data, 7) > 0) {
             apu_reset()
         }
@@ -75,7 +75,7 @@ apu_write :: proc(address: u16, data: u8) {
 }
 
 apu_reset :: proc() {
-    for i := u16(IO.NR10); i < u16(IO.NR51); i += 1 {
+    for i := IO_NR10; i < IO_NR51; i += 1 {
         memory[i] = 0
     }
 }

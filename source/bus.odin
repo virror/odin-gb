@@ -36,51 +36,49 @@ Mbc :: enum
     Huc1 = 255,
 }
 
-IO :: enum u16 {
-    P1 = 0xFF00,
-	SB = 0xFF01,
-	SC = 0xFF02,
-	DIV = 0xFF04,
-	TIMA = 0xFF05,
-	TMA = 0xFF06,
-	TAC = 0xFF07,
-	IF = 0xFF0F,
-	NR10 = 0xFF10,
-	NR11 = 0xFF11,
-	NR12 = 0xFF12,
-	NR13 = 0xFF13,
-	NR14 = 0xFF14,
-	NR21 = 0xFF16,
-	NR22 = 0xFF17,
-	NR23 = 0xFF18,
-	NR24 = 0xFF19,
-	NR30 = 0xFF1A,
-	NR31 = 0xFF1B,
-	NR32 = 0xFF1C,
-	NR33 = 0xFF1D,
-	NR34 = 0xFF1E,
-	NR41 = 0xFF20,
-	NR42 = 0xFF21,
-	NR43 = 0xFF22,
-	NR44 = 0xFF23,
-	NR50 = 0xFF24,
-	NR51 = 0xFF25,
-	NR52 = 0xFF26,
-	LCDC = 0xFF40,
-	STAT = 0xFF41,
-	SCY = 0xFF42,
-	SCX = 0xFF43,
-	LY = 0xFF44,
-	LYC = 0xFF45,
-	DMA = 0xFF46,
-	BGP = 0xFF47,
-	OBP0 = 0xFF48,
-	OBP1 = 0xFF49,
-	WY = 0xFF4A,
-	WX = 0xFF4B,
-	BL = 0xFF50,
-	IE = 0xFFFF,
-}
+IO_P1 :u16: 0xFF00
+IO_SB :u16: 0xFF01
+IO_SC :u16: 0xFF02
+IO_DIV :u16: 0xFF04
+IO_TIMA :u16: 0xFF05
+IO_TMA :u16: 0xFF06
+IO_TAC :u16: 0xFF07
+IO_IF :u16: 0xFF0F
+IO_NR10 :u16: 0xFF10
+IO_NR11 :u16: 0xFF11
+IO_NR12 :u16: 0xFF12
+IO_NR13 :u16: 0xFF13
+IO_NR14 :u16: 0xFF14
+IO_NR21 :u16: 0xFF16
+IO_NR22 :u16: 0xFF17
+IO_NR23 :u16: 0xFF18
+IO_NR24 :u16: 0xFF19
+IO_NR30 :u16: 0xFF1A
+IO_NR31 :u16: 0xFF1B
+IO_NR32 :u16: 0xFF1C
+IO_NR33 :u16: 0xFF1D
+IO_NR34 :u16: 0xFF1E
+IO_NR41 :u16: 0xFF20
+IO_NR42 :u16: 0xFF21
+IO_NR43 :u16: 0xFF22
+IO_NR44 :u16: 0xFF23
+IO_NR50 :u16: 0xFF24
+IO_NR51 :u16: 0xFF25
+IO_NR52 :u16: 0xFF26
+IO_LCDC :u16: 0xFF40
+IO_STAT :u16: 0xFF41
+IO_SCY :u16: 0xFF42
+IO_SCX :u16: 0xFF43
+IO_LY :u16: 0xFF44
+IO_LYC :u16: 0xFF45
+IO_DMA :u16: 0xFF46
+IO_BGP :u16: 0xFF47
+IO_OBP0 :u16: 0xFF48
+IO_OBP1 :u16: 0xFF49
+IO_WY :u16: 0xFF4A
+IO_WX :u16: 0xFF4B
+IO_BL :u16: 0xFF50
+IO_IE :u16: 0xFFFF
 
 bootrom: [0x100]u8
 memory: [0x10000]u8
@@ -123,7 +121,13 @@ bus_read :: proc(address: u16) -> u8 {
             } else {
                 value = 0xFF
             }
-        case u16(IO.IF):
+        case IO_SC:
+            value = memory[address] | 0x7C
+        case IO_TMA:
+            value = memory[address] | 0xF8
+        case IO_STAT:
+            value = memory[address] | 0x10
+        case IO_IF:
             value = memory[address] | 0xE0
         case:
             value = memory[address]
@@ -152,7 +156,7 @@ bus_write :: proc(address: u16, data: u8) {
             memory[address - 0x2000] = data
         case 0xFEA0..<0xFF00:   //Restricted memory
             return
-        case u16(IO.P1):
+        case IO_P1:
             if bit_test(data, 4) {
                 memory[address] = keyState
             }
@@ -160,20 +164,20 @@ bus_write :: proc(address: u16, data: u8) {
                 memory[address] = keyState >> 4
             }
             break
-        case u16(IO.SB):
+        case IO_SB:
             if SERIAL_DEBUG {
                 fmt.print(rune(data))
             }
             break
-        case u16(IO.LY): //Read only
+        case IO_LY: //Read only
             break
-        case u16(IO.DIV):
+        case IO_DIV:
             memory[address] = 0
             break
-        case u16(IO.DMA):
+        case IO_DMA:
             bus_dma_transfer(data)
             break
-        case u16(IO.BL):
+        case IO_BL:
             mem.copy(&memory[0], &romBanks[0], 0x4000)
             break
         case 0xFF10..=0xFF26:
