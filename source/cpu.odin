@@ -2,6 +2,13 @@ package main
 
 import "core:fmt"
 
+Operation :: enum {
+    Fetch,
+    CB,
+    Execute,
+    Nop,
+}
+
 Opcode :: struct {
     func: proc(),
 	cycles: u8,
@@ -13,7 +20,7 @@ State :: struct {
     op: Opcode,
     cycle: u8,
     value: u16,
-    cb: bool,
+    //cb: bool,
     number: u8,
 }
 
@@ -40,25 +47,32 @@ dTimer: u16
 tTimer: u16
 tima_ovf: bool
 state: State
+operation: Operation
 
 cpu_step :: proc() {
-    if(!halt) {
-        if(state.cycle == state.op.cycles || state.cb) {
-            state.op = cpu_get_opcode()
-            if((!state.cb && state.op.cycles == 1) || (state.cb && state.op.cycles == 2)) {
-                state.op.func()
-            }
-            if(state.cycle == 2) {
-                state.cb = false
-            }
-        } else {
+    switch(operation) {
+    case .Fetch:
+        state.op = cpu_get_opcode()
+        if(state.op.cycles == 1 && operation != .CB) {
             state.op.func()
-            state.cycle += 1
+            operation = .Fetch
         }
-    } else {
-        opcodes[0x00].func() //If HALT, NOP
+    case .CB:
+        state.op = cpu_get_cb()
+        if(state.op.cycles == 2) {
+            state.op.func()
+            operation = .Fetch
+        }
+    case .Execute:
+        state.op.func()
+        state.cycle += 1
+        if(state.cycle == state.op.cycles) {
+            operation = .Fetch
+        }
+    case .Nop:
+        opcodes[0x00].func()
     }
-    when(!TEST_ENABLE) {
+    /*when(!TEST_ENABLE) {
         if(tima_ovf) {
             cpu_tima_irq()
         }
@@ -66,7 +80,7 @@ cpu_step :: proc() {
         if(state.cycle == state.op.cycles) {
             cpu_handle_irq()
         }
-    }
+    }*/
 }
 
 cpu_fetch :: proc() -> u8 {
@@ -76,26 +90,31 @@ cpu_fetch :: proc() -> u8 {
 }
 
 cpu_get_opcode :: proc() -> Opcode {
-    op: Opcode
-    
     opcode := cpu_fetch()
+    op := opcodes[opcode]
+    operation = .Execute
+
     if(halt_bug) {
         PC -= 1
         halt_bug = false
     }
-    if(state.cb) { 
-        op = cbcodes[opcode]
-        state.cycle += 1
-    } else {
-        op = opcodes[opcode]
-        state.cycle = 1
-        if(opcode == 0xCB) {
-            state.cb = true
-        }
+    state.cycle = 1
+    if(opcode == 0xCB) {
+        operation = .CB
+        state.op.cycles = 2
     }
     if(op.func == nil && opcode != 0xCB) {
         fmt.println("Unknown opcode: ", opcode)
     }
+    state.number = opcode
+    return op
+}
+
+cpu_get_cb :: proc() -> Opcode {
+    opcode := cpu_fetch()
+    op := cbcodes[opcode]
+    operation = .Execute
+    state.cycle += 1
     state.number = opcode
     return op
 }

@@ -4,10 +4,10 @@ import "core:fmt"
 import "core:os"
 import "core:encoding/json"
 
-TEST_ENABLE :: false
+TEST_ENABLE :: true
 TEST_ALL :: true
-TEST_FILE :: "tests/json/f8.json"
-TEST_BREAK_ERROR :: false
+TEST_FILE :: "tests/json/cb 00.json"
+TEST_BREAK_ERROR :: true
 
 @(private="file")
 Registers :: struct {
@@ -116,7 +116,7 @@ test_run :: proc(json_data: Json_data) {
     cycle = 0
     error_string = ""
     cpu_step()
-    if(state.cb) {
+    if(operation == .CB) {
         cpu_step()
         if(state.op.cycles > 2) {
             for i:u8=2; i < state.op.cycles; i += 1 {
