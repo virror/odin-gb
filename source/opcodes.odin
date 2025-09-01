@@ -1470,7 +1470,7 @@ LDHLx :: proc(index: Index) {
 
 //INC x
 INCx :: proc(index: Index) {
-    if(state.cycle == 1) {
+    if(state.cycle == 1 || state.op.cycles == 1) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 2 || state.op.cycles == 1) {
@@ -1484,7 +1484,7 @@ INCx :: proc(index: Index) {
 
 //DEC x
 DECx :: proc(index: Index) {
-    if(state.cycle == 1) {
+    if(state.cycle == 1 || state.op.cycles == 1) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 2 || state.op.cycles == 1) {

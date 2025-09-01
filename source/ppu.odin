@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:slice"
 
 Mode :: enum u8 {
     HBlank = 0,
@@ -39,15 +40,34 @@ Llcd :: bit_field u8 {
     lcd_enable: bool    | 1,
 }
 
+Attrs :: bit_field u8 {
+    cgb_palette: bool   | 3,
+    bank: bool          | 1,
+    gb_palette: bool    | 1,
+    xflip: bool         | 1,
+    yflip: bool         | 1,
+    prio: bool          | 1,
+}
+
+Sprite :: struct {
+    ypos: u8,
+    xpos: u8,
+    index: u8,
+    flags: Attrs,
+    ipos: u8,
+}
+
 scanlineCounter :i32= 204
 screenRow: [160]u8
 screen_buffer: [WIN_WIDTH * WIN_HEIGHT]u16
+window_line: u8
+sprites: [10]Sprite
 
 ppu_reset :: proc() {
     scanlineCounter = 204
 }
 
-ppu_step :: proc(cycle: u16) -> bool {
+ppu_step :: proc() -> bool {
     retval: bool
     lcdc := Llcd(bus_get(IO_LCDC))
     status := Status(bus_get(IO_STAT))
@@ -58,7 +78,7 @@ ppu_step :: proc(cycle: u16) -> bool {
         ppu_reset_LCD(status)
         return false
     }
-    scanlineCounter -= i32(cycle)
+    scanlineCounter -= 4
 
     switch status.mode {
     case .HBlank:		// H-blank
@@ -83,6 +103,7 @@ ppu_step :: proc(cycle: u16) -> bool {
             ly += 1
             if(ly > 153) {	// -> Mode 2 - OAM
                 ly = 0
+                window_line = 0
                 status.mode = .OAM
                 iFlags.lcdc = status.oam
             }
@@ -91,6 +112,8 @@ ppu_step :: proc(cycle: u16) -> bool {
         break
     case .OAM:		// OAM
         if(scanlineCounter < 376) {	// -> Mode 3 - OAM + RAM
+            ppu_get_sprites(ly, lcdc)
+            slice.sort_by(sprites[:], sort_func)
             status.mode = .Draw
         }
         break
@@ -116,7 +139,7 @@ ppu_reset_LCD :: proc(stat: Status) {
 }
 
 ppu_set_ly :: proc(ly: u8, status: ^Status, iflags: ^IRQ) {
-    if (ly == bus_get(IO_LYC)) {
+    if(ly == bus_get(IO_LYC)) {
         status.lyc_ly = true
         if(status.lyc) {
             iflags.lcdc = true
@@ -137,67 +160,88 @@ ppu_draw_scanline :: proc(lcdc: Llcd, ly: u8) {
     ppu_convert_row(ly)
 }
 
-ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
-    for i :i16= 39; i >= 0; i -= 1 {
-        yPos := i16(bus_read(0xFE00 + u16(i * 4)))
-        index := bus_read(0xFE00 + u16(i * 4 + 2))
-
+ppu_get_sprites :: proc(ly: u8, lcdc: Llcd) {
+    sprite_idx: u8
+    ySize :u8= 8
+    sprites = {}
+    if(lcdc.obj_size) {
+        ySize = 16
+    }
+    for i :u8= 0; i < 40; i += 1 {
+        yPos := bus_read(0xFE00 + u16(i * 4))
         if(yPos == 0 || yPos >= 160) {
             continue
         }
+        if(yPos <= ly + 16 && (yPos + ySize) > ly + 16) {
+            sprites[sprite_idx].xpos = bus_read(0xFE00 + u16(i * 4 + 1)) - 8
+            sprites[sprite_idx].ypos = yPos
+            index := bus_read(0xFE00 + u16(i * 4 + 2))
+            if(ySize == 16) {
+                index = index & 0xFE //Clear bit 0
+            }
+            sprites[sprite_idx].index = index
+            sprites[sprite_idx].flags = Attrs(bus_read(0xFE00 + u16(i * 4 + 3)))
+            sprites[sprite_idx].ipos = i
+            sprite_idx += 1
+        }
+        if(sprite_idx == 10) {
+            break
+        }
+    }
+}
 
-        yPos -= 16
-        ySize: u8
-        if(lcdc.obj_size) {
-            index = index & 0xFE //Clear bit 0
-            ySize = 16
-        } else {
-            ySize = 8
+sort_func :: proc(i: Sprite, j: Sprite) -> bool {
+    if(i.xpos == j.xpos) {
+        return i.ipos > j.ipos
+    } else {
+        return i.xpos > j.xpos
+    }
+}
+
+ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
+    ySize :u8= 8
+    if(lcdc.obj_size) {
+        ySize = 16
+    }
+    for sprite in sprites {
+        if(sprite.ypos == 0 || sprite.ypos >= 160) {
+            continue
+        }
+        xFlip := sprite.flags.xflip
+        yFlip := sprite.flags.yflip
+        line := ly + 16 - sprite.ypos
+        if(yFlip) {
+            line = (ySize - 1 - line)
         }
 
-        if(yPos <= i16(ly) && (yPos + i16(ySize)) > i16(ly)) {
-            xPos := bus_read(0xFE00 + u16(i * 4 + 1)) - 8
-            flags := bus_read(0xFE00 + u16(i * 4 + 3))
-            xFlip := bit_test(flags, 5)
-            yFlip := bit_test(flags, 6)
-            line := i16(ly) - yPos
-            if(yFlip) {
-                line = (i16(ySize - 1) - line)
+        address :u16= 0x8000 + u16(sprite.index) * 16 + u16(line) * 2
+        line1 := bus_read(address)
+        line2 := bus_read(address + 1)
+
+        for j :i8= 7; j >= 0; j -= 1 {
+            colorBit := u8(j)
+            if(xFlip) {
+                colorBit = (7 - colorBit)
             }
 
-            address :u16= 0x8000 + u16(index) * 16 + u16(line) * 2
-            line1 := bus_read(address)
-            line2 := bus_read(address + 1)
+            colorNum := bit_get(line2, colorBit)
+            colorNum <<= 1
+            colorNum |= bit_get(line1, colorBit)
 
-            for j :i8= 7; j >= 0; j -= 1 {
-                colorBit := u8(j)
-                if(xFlip) {
-                    colorBit = (7 - colorBit)
-                }
+            xPix :u8= 7
+            xPix -= u8(j)
+            pixPos := xPix + sprite.xpos
 
-                colorNum := bit_get(line2, colorBit)
-                colorNum <<= 1
-                colorNum |= bit_get(line1, colorBit)
-
-                xPix :u8= 7
-                xPix -= u8(j)
-                pixPos := xPix + xPos
-
-                if(pixPos >= 160 || pixPos < 0) {
-                    continue
-                }
-
-                if(bit_test(flags, 7) && screenRow[pixPos] != 0) {
-                    continue
-                }
-                if(colorNum == 0) {
-                    continue
-                }
-
-                //obp := (bit_test(flags, 4)?IO_OBP1:IO_OBP0)
-                //color := ppu_get_color(colorNum, obp)
-                screenRow[pixPos] = (bit_test(flags, 4)?colorNum + 8:colorNum + 4)
+            if(pixPos >= 160 || pixPos < 0) {
+                continue
             }
+            if(sprite.flags.prio && screenRow[pixPos] != 0) {
+                continue
+            }
+            if(colorNum == 0) {
+                continue
+            }
+            screenRow[pixPos] = (sprite.flags.gb_palette?colorNum + 8:colorNum + 4)
         }
     }
 }
@@ -206,7 +250,7 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
     scy := bus_read(IO_SCY)
     scx := bus_read(IO_SCX)
     wy := bus_read(IO_WY)
-    wx := i16(i8(bus_read(IO_WX) - 7))
+    wx := bus_read(IO_WX)
     yPos: u8
     backMem: u16
     window: bool
@@ -218,38 +262,32 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         tileData = 0x8800
     }
 
-    if (lcdc.window_enable) {
-        if (wy <= ly) {
+    if(lcdc.window_enable) {
+        if(wy <= ly && wx < WIN_WIDTH) {
             window = true
         }
     }
 
-    if (!window) {
-        if (lcdc.bg_map) {
-            backMem = 0x9C00
-        } else {
-            backMem = 0x9800
-        }
-        yPos = scy + ly
-    } else {
-        if (lcdc.window_map) {
-            backMem = 0x9C00
-        } else {
-            backMem = 0x9800
-        }
-        yPos = ly - wy
-    }
-
-    tileRow := (u16(yPos / 8) * 32)
-
     for pixel :u8= 0; pixel < 160; pixel += 1 {
         xPos := scx + pixel
-        if (window) {
-            if (i16(pixel) >= wx) {
-                xPos = u8(i16(pixel) - wx)
+        yPos = scy + ly
+        if(lcdc.bg_map) {
+            backMem = 0x9C00
+        } else {
+            backMem = 0x9800
+        }
+        if(window) {
+            if(pixel + 7 >= wx) {
+                xPos = pixel + 7 - wx
+                yPos = window_line
+                if(lcdc.window_map) {
+                    backMem = 0x9C00
+                } else {
+                    backMem = 0x9800
+                }
             }
-        } 
-
+        }
+        tileRow := (u16(yPos / 8) * 32)
         tileCol := u16(xPos / 8)
         tileAddress := backMem + tileRow + tileCol
         tileLocation := tileData
@@ -274,6 +312,9 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         colorNum |= bit_get(data1, u8(colorBit))
 
         screenRow[pixel] = colorNum
+    }
+    if(window) {
+        window_line += 1
     }
 }
 

@@ -1,9 +1,5 @@
 -M-cycle accuracy
--Sprites priority handling
 -Writing to STAT trigger interrupts?
--Mask STAT bit 7?
--Proper window handling
--Pass ppu tests
 -Sound
 -Save/Load states
 -Color support

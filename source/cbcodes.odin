@@ -1065,7 +1065,7 @@ CB3E :: proc() {
 
 //RLC x
 RLCx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1078,7 +1078,7 @@ RLCx :: proc(index: Index) {
 
 //RRC x
 RRCx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1091,7 +1091,7 @@ RRCx :: proc(index: Index) {
 
 //SLA x
 SLAx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1103,7 +1103,7 @@ SLAx :: proc(index: Index) {
 
 //SRA x
 SRAx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1116,7 +1116,7 @@ SRAx :: proc(index: Index) {
 
 //RL x
 RLx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1129,7 +1129,7 @@ RLx :: proc(index: Index) {
 
 //RR x
 RRx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1149,7 +1149,7 @@ BITx :: proc(bit: u8, index: Index) {
 
 //SET b, x
 SETx :: proc(bit: u8, index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index) | (1 << bit))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1159,7 +1159,7 @@ SETx :: proc(bit: u8, index: Index) {
 
 //RES b, x
 RESx :: proc(bit: u8, index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index) & ~(1 << bit))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1169,7 +1169,7 @@ RESx :: proc(bit: u8, index: Index) {
 
 //SWAP x
 SWAPx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
@@ -1183,7 +1183,7 @@ SWAPx :: proc(index: Index) {
 
 //SRL x
 SRLx :: proc(index: Index) {
-    if(state.cycle == 2) {
+    if(state.cycle == 2 || state.op.cycles == 2) {
         state.value = u16(getReg(index))
     }
     if(state.cycle == 3 || state.op.cycles == 2) {
