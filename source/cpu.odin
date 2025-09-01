@@ -6,7 +6,8 @@ Operation :: enum {
     Fetch,
     CB,
     Execute,
-    Nop,
+    Irq,
+    Dma,
 }
 
 Opcode :: struct {
@@ -20,7 +21,6 @@ State :: struct {
     op: Opcode,
     cycle: u8,
     value: u16,
-    //cb: bool,
     number: u8,
 }
 
@@ -48,39 +48,41 @@ tTimer: u16
 tima_ovf: bool
 state: State
 operation: Operation
+irq_idx: int = -1
 
 cpu_step :: proc() {
     switch(operation) {
     case .Fetch:
-        state.op = cpu_get_opcode()
+        state.cycle = 0
+        cpu_get_opcode()
         if(state.op.cycles == 1 && operation != .CB) {
             state.op.func()
-            operation = .Fetch
         }
     case .CB:
-        state.op = cpu_get_cb()
+        cpu_get_cb()
         if(state.op.cycles == 2) {
             state.op.func()
-            operation = .Fetch
         }
     case .Execute:
         state.op.func()
-        state.cycle += 1
-        if(state.cycle == state.op.cycles) {
-            operation = .Fetch
-        }
-    case .Nop:
+    case .Irq:
+        cpu_irq_do()
+    case .Dma:
         opcodes[0x00].func()
     }
-    /*when(!TEST_ENABLE) {
+    state.cycle += 1
+    if(state.cycle == state.op.cycles) {
+        operation = .Fetch
+    }
+    when(!TEST_ENABLE) {
         if(tima_ovf) {
             cpu_tima_irq()
         }
         cpu_handle_tmr()
         if(state.cycle == state.op.cycles) {
-            cpu_handle_irq()
+            cpu_irq_check()
         }
-    }*/
+    }
 }
 
 cpu_fetch :: proc() -> u8 {
@@ -89,7 +91,7 @@ cpu_fetch :: proc() -> u8 {
     return data
 }
 
-cpu_get_opcode :: proc() -> Opcode {
+cpu_get_opcode :: proc() {
     opcode := cpu_fetch()
     op := opcodes[opcode]
     operation = .Execute
@@ -98,42 +100,65 @@ cpu_get_opcode :: proc() -> Opcode {
         PC -= 1
         halt_bug = false
     }
-    state.cycle = 1
     if(opcode == 0xCB) {
         operation = .CB
         state.op.cycles = 2
+    } else {
+        state.op = op
     }
     if(op.func == nil && opcode != 0xCB) {
         fmt.println("Unknown opcode: ", opcode)
     }
     state.number = opcode
-    return op
 }
 
-cpu_get_cb :: proc() -> Opcode {
+cpu_get_cb :: proc() {
     opcode := cpu_fetch()
     op := cbcodes[opcode]
     operation = .Execute
-    state.cycle += 1
     state.number = opcode
-    return op
+    state.op = op
 }
 
-cpu_handle_irq :: proc() {
+cpu_irq_check :: proc() {
     iFlags := bus_read(IO_IF)
     eFlags := bus_read(IO_IE)
+    i :u8
 
-    for i :u8= 0; i < 5; i += 1 {
+    for i = 0; i < 5; i += 1 {
         if(bit_test(iFlags, i) && bit_test(eFlags, i)) {
             halt = false
-            if(IME == true) {
-                IME = false
-                Push(u8(PC >> 8))
-                Push(u8(PC))
-                bus_set(IO_IF, (iFlags & ~(1 << i)))
-                PC = 0x0040 + u16(i) * 0x8
-            }
+            irq_idx = int(i)
+            break
         }
+    }
+    if(IME == true && irq_idx >= 0) {
+        //operation = .Irq
+        IME = false
+        bus_set(IO_IF, (iFlags & ~(1 << i)))
+        //state.op.cycles = 5
+
+        Push(u8(PC >> 8))
+        Push(u8(PC))
+        irq_idx = -1
+        PC = 0x0040 + u16(i) * 0x8
+    }
+}
+
+cpu_irq_do :: proc() {
+    switch(state.cycle) {
+    case 0:
+        //nop
+    case 1:
+        //nop
+    case 2:
+        Push(u8(PC >> 8))
+    case 3:
+        Push(u8(PC))
+    case 4:
+        i := u8(irq_idx)
+        irq_idx = -1
+        PC = 0x0040 + u16(i) * 0x8
     }
 }
 
