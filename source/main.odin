@@ -69,7 +69,7 @@ main :: proc() {
         false,
         &desired,
         &obtained,
-        false,
+        nil,    //TODO: Investigate
     )
     defer sdl.CloseAudioDevice(device)
     assert(device != 0, "Failed to create audio device") // TODO: Handle error

@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:encoding/json"
 
-TEST_ENABLE :: true
+TEST_ENABLE :: false
 TEST_ALL :: true
 TEST_FILE :: "tests/json/cb 00.json"
 TEST_BREAK_ERROR :: true
