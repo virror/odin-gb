@@ -112,6 +112,8 @@ ppu_step :: proc() -> bool {
         break
     case .OAM:		// OAM
         if(scanlineCounter < 376) {	// -> Mode 3 - OAM + RAM
+            ppu_get_sprites(ly, lcdc)
+            slice.sort_by(sprites[:], sort_func)
             status.mode = .Draw
         }
         break
@@ -158,9 +160,13 @@ ppu_draw_scanline :: proc(lcdc: Llcd, ly: u8) {
     ppu_convert_row(ly)
 }
 
-ppu_get_sprites :: proc(ly: u8, ySize: u8) {
+ppu_get_sprites :: proc(ly: u8, lcdc: Llcd) {
     sprite_idx: u8
+    ySize :u8= 8
     sprites = {}
+    if(lcdc.obj_size) {
+        ySize = 16
+    }
     for i :u8= 0; i < 40; i += 1 {
         yPos := bus_read(0xFE00 + u16(i * 4))
         if(yPos == 0 || yPos >= 160) {
@@ -193,15 +199,10 @@ sort_func :: proc(i: Sprite, j: Sprite) -> bool {
 }
 
 ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
-    ySize: u8
+    ySize :u8= 8
     if(lcdc.obj_size) {
         ySize = 16
-    } else {
-        ySize = 8
     }
-
-    ppu_get_sprites(ly, ySize)
-    slice.sort_by(sprites[:], sort_func)
     for sprite in sprites {
         if(sprite.ypos == 0 || sprite.ypos >= 160) {
             continue
