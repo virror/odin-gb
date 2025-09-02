@@ -5,9 +5,9 @@ import "core:fmt"
 clock_cnt: u16
 tranferCounter: u16
 
-serial_step :: proc(cycle: u16) {
+serial_step :: proc() {
     if(tranferCounter > 0) {
-        clock_cnt += cycle
+        clock_cnt += 4
         if(clock_cnt >= 512) {
             clock_cnt -= 512
             tranferCounter += 1

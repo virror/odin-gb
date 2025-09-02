@@ -42,12 +42,13 @@ Llcd :: bit_field u8 {
 scanlineCounter :i32= 204
 screenRow: [160]u8
 screen_buffer: [WIN_WIDTH * WIN_HEIGHT]u16
+window_line: u8
 
 ppu_reset :: proc() {
     scanlineCounter = 204
 }
 
-ppu_step :: proc(cycle: u16) -> bool {
+ppu_step :: proc() -> bool {
     retval: bool
     lcdc := Llcd(bus_get(IO_LCDC))
     status := Status(bus_get(IO_STAT))
@@ -58,7 +59,7 @@ ppu_step :: proc(cycle: u16) -> bool {
         ppu_reset_LCD(status)
         return false
     }
-    scanlineCounter -= i32(cycle)
+    scanlineCounter -= 4
 
     switch status.mode {
     case .HBlank:		// H-blank
@@ -83,6 +84,7 @@ ppu_step :: proc(cycle: u16) -> bool {
             ly += 1
             if(ly > 153) {	// -> Mode 2 - OAM
                 ly = 0
+                window_line = 0
                 status.mode = .OAM
                 iFlags.lcdc = status.oam
             }
@@ -116,7 +118,7 @@ ppu_reset_LCD :: proc(stat: Status) {
 }
 
 ppu_set_ly :: proc(ly: u8, status: ^Status, iflags: ^IRQ) {
-    if (ly == bus_get(IO_LYC)) {
+    if(ly == bus_get(IO_LYC)) {
         status.lyc_ly = true
         if(status.lyc) {
             iflags.lcdc = true
@@ -193,9 +195,6 @@ ppu_drawSprites :: proc(lcdc: Llcd, ly: u8) {
                 if(colorNum == 0) {
                     continue
                 }
-
-                //obp := (bit_test(flags, 4)?IO_OBP1:IO_OBP0)
-                //color := ppu_get_color(colorNum, obp)
                 screenRow[pixPos] = (bit_test(flags, 4)?colorNum + 8:colorNum + 4)
             }
         }
@@ -206,7 +205,7 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
     scy := bus_read(IO_SCY)
     scx := bus_read(IO_SCX)
     wy := bus_read(IO_WY)
-    wx := i16(i8(bus_read(IO_WX) - 7))
+    wx := bus_read(IO_WX)
     yPos: u8
     backMem: u16
     window: bool
@@ -218,38 +217,32 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         tileData = 0x8800
     }
 
-    if (lcdc.window_enable) {
-        if (wy <= ly) {
+    if(lcdc.window_enable) {
+        if(wy <= ly && wx < WIN_WIDTH) {
             window = true
         }
     }
 
-    if (!window) {
-        if (lcdc.bg_map) {
-            backMem = 0x9C00
-        } else {
-            backMem = 0x9800
-        }
-        yPos = scy + ly
-    } else {
-        if (lcdc.window_map) {
-            backMem = 0x9C00
-        } else {
-            backMem = 0x9800
-        }
-        yPos = ly - wy
-    }
-
-    tileRow := (u16(yPos / 8) * 32)
-
     for pixel :u8= 0; pixel < 160; pixel += 1 {
         xPos := scx + pixel
-        if (window) {
-            if (i16(pixel) >= wx) {
-                xPos = u8(i16(pixel) - wx)
+        yPos = scy + ly
+        if(lcdc.bg_map) {
+            backMem = 0x9C00
+        } else {
+            backMem = 0x9800
+        }
+        if(window) {
+            if(pixel + 7 >= wx) {
+                xPos = pixel + 7 - wx
+                yPos = window_line
+                if(lcdc.window_map) {
+                    backMem = 0x9C00
+                } else {
+                    backMem = 0x9800
+                }
             }
-        } 
-
+        }
+        tileRow := (u16(yPos / 8) * 32)
         tileCol := u16(xPos / 8)
         tileAddress := backMem + tileRow + tileCol
         tileLocation := tileData
@@ -274,6 +267,9 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         colorNum |= bit_get(data1, u8(colorBit))
 
         screenRow[pixel] = colorNum
+    }
+    if(window) {
+        window_line += 1
     }
 }
 

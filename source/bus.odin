@@ -214,8 +214,9 @@ bus_get :: proc(address: u16) -> u8 {
 
 bus_dma_transfer :: proc(data: u8) {
     startAddr := u16(data) << 8
-    //Array.Copy(memory, startAddr, memory, 0xFE00, 0xA0)
     mem.copy(&memory[0xFE00], &memory[startAddr], 0xA0)
+    operation = .Dma
+    state.op.cycles = 140
 }
 
 bus_get_rom_size :: proc(rom_size: u8) -> u16 {
@@ -363,6 +364,7 @@ bus_ram_switch :: proc(data: u8) {
          Mbc.MBC3_TIM_BAT:
         data &= 0x03
         ramBankNr = data
+        break
     case Mbc.MBC3_RAM,
          Mbc.MBC3_RAM_BAT,
          Mbc.MBC3_TIM_RAM_BAT:

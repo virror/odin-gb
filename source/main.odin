@@ -102,8 +102,8 @@ main :: proc() {
         handle_events()
         if (!pause || step) && !redraw {
             cpu_step()
-            redraw = ppu_step(4)
-            serial_step(4)
+            redraw = ppu_step()
+            serial_step()
             apu_step()
 
             if step {
