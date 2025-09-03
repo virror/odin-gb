@@ -1,8 +1,8 @@
 package main
 
 import "core:fmt"
-import sdl "vendor:sdl2"
-import sdlttf "vendor:sdl2/ttf"
+import sdl "vendor:sdl3"
+import sdlttf "vendor:sdl3/ttf"
 
 font: ^sdlttf.Font
 
@@ -30,18 +30,18 @@ debug_draw :: proc() {
     sdl.RenderPresent(debug_render)
 }
 
-debug_draw_op :: proc(opText: cstring, pc: u16, posX: i32, posY: i32) {
+debug_draw_op :: proc(opText: cstring, pc: u16, posX: f32, posY: f32) {
     op := state.op
     line := fmt.caprintf("%x %s", state.number, op.desc)
     debug_text(line, posX, posY, {230, 230, 230, 230})
 }
 
-debug_draw_reg :: proc(regText: cstring, reg: u16, posX: i32, posY: i32) {
+debug_draw_reg :: proc(regText: cstring, reg: u16, posX: f32, posY: f32) {
     line := fmt.caprintf("%s %4x", regText, reg)
     debug_text(line, posX, posY, {230, 230, 230, 230})
 }
 
-debug_draw_flag :: proc(flagText: cstring, flag: bool, posX: i32, posY: i32) {
+debug_draw_flag :: proc(flagText: cstring, flag: bool, posX: f32, posY: f32) {
     line := fmt.caprintf("%s %d", flagText, u8(flag))
     debug_text(line, posX, posY, {230, 230, 230, 230})
 }
@@ -50,21 +50,22 @@ debug_quit :: proc() {
     sdlttf.CloseFont(font)
 }
 
-debug_text :: proc(text: cstring, posX: i32, posY: i32, color: sdl.Color) {
-    surface := sdlttf.RenderText_Solid(font, text, color)
+debug_text :: proc(text: cstring, posX: f32, posY: f32, color: sdl.Color) {
+    surface := sdlttf.RenderText_Solid(font, text, len(text), color)
     texture := sdl.CreateTextureFromSurface(debug_render, surface)
    
-    texW :i32= 0
-    texH :i32= 0
-    sdl.QueryTexture(texture, nil, nil, &texW, &texH)
+    texW :f32= 0
+    texH :f32= 0
+    sdl.GetTextureSize(texture, &texW, &texH)
    
-    text_rect: sdl.Rect
+    text_rect: sdl.FRect
     text_rect.x = posX
     text_rect.y = posY
     text_rect.w = texW
     text_rect.h = texH
-    sdl.RenderCopy(debug_render, texture, nil, &text_rect)
-
-    sdl.FreeSurface(surface)
+    //sdl.RenderCopy(debug_render, texture, nil, &text_rect)
+    sdl.RenderTexture(debug_render, texture, nil, &text_rect)
+    
+    sdl.DestroySurface(surface)
     sdl.DestroyTexture(texture)
 }
