@@ -43,10 +43,11 @@ main :: proc() {
     sdl.SetWindowPosition(window, 200, 200)
     render_init(window)
 
-    debug_window := sdl.CreateWindow("debug", 600, 600, sdl.WINDOW_OPENGL | sdl.WINDOW_RESIZABLE)
-    assert(debug_window != nil, "Failed to create debug window")
+    debug_window: ^sdl.Window
+    if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_OPENGL, &debug_window, &debug_render)) {
+        panic("Failed to create debug window")
+    }
     defer sdl.DestroyWindow(debug_window)
-    debug_render = sdl.CreateRenderer(debug_window, nil)
     defer sdl.DestroyRenderer(debug_render)
     sdl.SetWindowPosition(debug_window, 700, 100)
 
