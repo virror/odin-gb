@@ -57,14 +57,14 @@ Sprite :: struct {
     ipos: u8,
 }
 
-scanlineCounter :i32= 204
+scanlineCounter :u32= 0
 screenRow: [160]u8
 screen_buffer: [WIN_WIDTH * WIN_HEIGHT]u16
 window_line: u8
 sprites: [10]Sprite
 
 ppu_reset :: proc() {
-    scanlineCounter = 204
+    scanlineCounter = 0
 }
 
 ppu_step :: proc() -> bool {
@@ -78,12 +78,12 @@ ppu_step :: proc() -> bool {
         ppu_reset_LCD(status)
         return false
     }
-    scanlineCounter -= 4
+    scanlineCounter += 4
 
     switch status.mode {
     case .HBlank:		// H-blank
-        if(scanlineCounter < 0) {
-            scanlineCounter += 456
+        if(scanlineCounter >= 456) {
+            scanlineCounter -= 456
             if(ly >= 143) {	// -> Mode 1 - V-blank
                 status.mode = .VBlank
                 iFlags.lcdc = status.vblank
@@ -98,8 +98,8 @@ ppu_step :: proc() -> bool {
         }
         break
     case .VBlank:		// V-blank
-        if(scanlineCounter < 0) {
-            scanlineCounter += 456
+        if(scanlineCounter >= 456) {
+            scanlineCounter -= 456
             ly += 1
             if(ly > 153) {	// -> Mode 2 - OAM
                 ly = 0
@@ -111,16 +111,16 @@ ppu_step :: proc() -> bool {
         }
         break
     case .OAM:		// OAM
-        if(scanlineCounter < 376) {	// -> Mode 3 - OAM + RAM
+        if(scanlineCounter >= 80) {	// -> Mode 3 - OAM + RAM
             ppu_get_sprites(ly, lcdc)
             slice.sort_by(sprites[:], sort_func)
             status.mode = .Draw
         }
         break
     case .Draw:		// OAM + RAM
-        if(scanlineCounter < 204) {	// -> Mode 0 - H-blank
+        ppu_draw_scanline(lcdc, ly)
+        if(scanlineCounter >= 240) {	// -> Mode 0 - H-blank
             status.mode = .HBlank
-            ppu_draw_scanline(lcdc, ly)
             iFlags.lcdc = status.hblank
         }
         break
@@ -254,6 +254,7 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
     yPos: u8
     backMem: u16
     window: bool
+    counter := u8(scanlineCounter - 80)
 
     tileData: u16
     if(lcdc.bg_tiles) {
@@ -268,8 +269,9 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         }
     }
 
-    for pixel :u8= 0; pixel < 160; pixel += 1 {
-        xPos := scx + pixel
+    for pixel :u8= 0; pixel < 4; pixel += 1 {
+        pixel2 := counter + pixel - 4
+        xPos := scx + pixel2
         yPos = scy + ly
         if(lcdc.bg_map) {
             backMem = 0x9C00
@@ -277,8 +279,8 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
             backMem = 0x9800
         }
         if(window) {
-            if(pixel + 7 >= wx) {
-                xPos = pixel + 7 - wx
+            if(pixel2 + 7 >= wx) {
+                xPos = pixel2 + 7 - wx
                 yPos = window_line
                 if(lcdc.window_map) {
                     backMem = 0x9C00
@@ -311,7 +313,7 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         colorNum <<= 1
         colorNum |= bit_get(data1, u8(colorBit))
 
-        screenRow[pixel] = colorNum
+        screenRow[pixel2] = colorNum
     }
     if(window) {
         window_line += 1
