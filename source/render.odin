@@ -44,7 +44,7 @@ render_init :: proc(window: ^sdl.Window) {
         log.debugf("SDL {} [{}] {}", category, priority, message)
     }, nil)
 
-    gpu = sdl.CreateGPUDevice({.SPIRV, .METALLIB}, true, nil)
+    gpu = sdl.CreateGPUDevice({.SPIRV, .METALLIB}, false, nil)
     if !sdl.ClaimWindowForGPUDevice(gpu, window) {
         panic("GPU failed to claim window")
     }
