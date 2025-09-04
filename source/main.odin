@@ -37,14 +37,14 @@ main :: proc() {
     sdlttf.Init()
     defer sdlttf.Quit()
     
-    window = sdl.CreateWindow("odin-gb", WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE, sdl.WINDOW_OPENGL)
+    window = sdl.CreateWindow("odin-gb", WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE, sdl.WINDOW_VULKAN)
     assert(window != nil, "Failed to create main window")
     defer sdl.DestroyWindow(window)
     sdl.SetWindowPosition(window, 200, 200)
     render_init(window)
 
     debug_window: ^sdl.Window
-    if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_OPENGL, &debug_window, &debug_render)) {
+    if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_VULKAN, &debug_window, &debug_render)) {
         panic("Failed to create debug window")
     }
     defer sdl.DestroyWindow(debug_window)
@@ -121,7 +121,10 @@ main :: proc() {
 
 draw_main :: proc(screen_buffer: []u16) {
     texture := texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0])
-    render_screen(texture)
+    render_pre()
+    render_set_shader()
+    render_quad()
+    render_post()
     texture_destroy(texture)
 }
 
