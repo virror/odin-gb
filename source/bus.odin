@@ -102,6 +102,13 @@ bus_init :: proc() {
     os.close(file)
 }
 
+bus_reset :: proc() {
+    memory = {}
+    romBanks = {}
+    ramBanks = {}
+    bus_init()
+}
+
 bus_dummy :: proc() {
     when TEST_ENABLE {
         test_write(bus_address, bus_value)
@@ -261,7 +268,7 @@ bus_load_ROM :: proc(rom: string) {
         assert(err2 == nil, "Failed to read rom data")
     }
     os.close(file)
-    file_name = filepath.short_stem(ROM_PATH)
+    file_name = filepath.short_stem(rom)
     
     mem.copy(&memory[0x4000], &romBanks[1][0], 0x4000)
     mbc = Mbc(memory[0x0147])
@@ -387,7 +394,7 @@ bus_has_battery :: proc() -> bool {
 
 bus_save_ram :: proc() {
     if(ramChanged) {
-        path := (filepath.dir(ROM_PATH))
+        path := (filepath.dir("ROM_PATH"))
         save_path := fmt.aprintf("%s/%s.sav", path, file_name)
         file, err := os.open(save_path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
         if(err == nil) {
@@ -402,7 +409,7 @@ bus_save_ram :: proc() {
 }
 
 bus_load_ram :: proc() {
-    path := (filepath.dir(ROM_PATH))
+    path := (filepath.dir("ROM_PATH"))
     load_path := fmt.aprintf("%s/%s.sav", path, file_name)
     file, err := os.open(load_path, os.O_RDONLY)
     if(err == nil) {

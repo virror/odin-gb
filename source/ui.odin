@@ -5,7 +5,7 @@ import sdl "vendor:sdl3"
 
 @(private="file")
 UI_COUNT :: 200
-UI_SPRITE_COUNT :: 3
+UI_SPRITE_COUNT :: 4
 @(private="file")
 UI_FONT_RATIO :: 18.0 / 14.0
 
@@ -178,12 +178,14 @@ sprite_destroy :: proc(sprite: ^Sprite2) {
 
 IMG_UI_0 :: "../sprites/White.png"
 IMG_UI_1 :: "../sprites/Bitmap_font.png"
-IMG_UI_2 :: "../sprites/Menu.png"
+IMG_UI_2 :: "../sprites/Pause.png"
+IMG_UI_3 :: "../sprites/Button.png"
 
 ui_sprite_create_all :: proc() {
     ui_sprites[0] = sprite_create(#load(IMG_UI_0), {1, 1})
     ui_sprites[1] = sprite_create(#load(IMG_UI_1), {18, 6})
     ui_sprites[2] = sprite_create(#load(IMG_UI_2), {1, 1})
+    ui_sprites[3] = sprite_create(#load(IMG_UI_3), {1, 1})
  }
 
 ui_sprite_destroy_all :: proc() {
@@ -222,11 +224,7 @@ ui_text :: proc(position: Vector2f, size: f32, text: string,
 
 ui_button :: proc(position: Vector2f, size: Vector2f, on_click: proc(element: ^Ui_element),
         anchor: Ui_Anchor, parent: ^Ui_element = nil) -> ^Ui_element {
-    element := ui_image(position, size, 0, anchor)
-    element.on_mouse_enter = button_enter
-    element.on_mouse_leave = button_leave
-    element.on_mouse_down = button_down
-    element.on_mouse_up = button_up
+    element := ui_image(position, size, 3, anchor)
     element.on_mouse_click = on_click
     element.parent = parent
     ui_buttons[ui_button_id] = element
@@ -392,28 +390,4 @@ ui_get_render_pos :: proc(anchor: Ui_Anchor) -> Vector2f {
 
 ui_get_text_width :: proc(text: ^Ui_element) -> f32 {
     return f32(len(text.text)) * text.size.x
-}
-
-@(private="file")
-button_enter :: proc(element: ^Ui_element) {
-    element.color = {0.8, 0.8, 0.8, 1}
-}
-
-@(private="file")
-button_leave :: proc(element: ^Ui_element) {
-    element.color = {1, 1, 1, 1}
-}
-
-@(private="file")
-button_down :: proc(element: ^Ui_element, button: map[Mouse_button]bool) {
-    if button[Mouse_button.left] {
-        element.color = {0.6, 0.6, 0.6, 1}
-    }
-}
-
-@(private="file")
-button_up :: proc(element: ^Ui_element, button: map[Mouse_button]bool) {
-    if button[Mouse_button.left] {
-        element.color = {0.8, 0.8, 0.8, 1}
-    }
 }

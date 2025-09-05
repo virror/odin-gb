@@ -50,6 +50,21 @@ state: State
 operation: Operation
 irq_idx: int = -1
 
+cpu_reset :: proc() {
+    reg = {}
+    halt = false
+    halt_bug = false
+    PC = 0
+    SP = 0
+    IME = false
+    dTimer = 0
+    tTimer = 0
+    tima_ovf = false
+    state = {}
+    operation = .Fetch
+    irq_idx = -1
+}
+
 cpu_step :: proc() {
     switch(operation) {
     case .Fetch:

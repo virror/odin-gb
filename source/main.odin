@@ -2,12 +2,12 @@ package main
 
 import "core:text/edit"
 import "core:fmt"
+import "base:runtime"
 import sdl "vendor:sdl3"
 import sdlttf "vendor:sdl3/ttf"
 import sdlimg "vendor:sdl3/image"
 
 SKIP_BIOS :: false
-ROM_PATH :: "roms/Legend of Zelda, The - Link's Awakening (USA, Europe).gb"
 SERIAL_DEBUG :: true
 
 WIN_WIDTH :: 160
@@ -28,6 +28,14 @@ step := false
 window: ^sdl.Window
 debug_render: ^sdl.Renderer
 file_name: string
+@(private="file")
+pause_btn: ^Ui_element
+@(private="file")
+load_btn: ^Ui_element
+@(private="file")
+resume_btn: ^Ui_element
+@(private="file")
+bepa: sdl.DialogFileFilter = {name = "Gameboy rom", pattern = "gb"}
 
 main :: proc() {
     if(!sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMEPAD | sdl.INIT_AUDIO)) {
@@ -68,7 +76,6 @@ main :: proc() {
     assert(device != nil, "Failed to create audio device") // TODO: Handle error
 
     debug_init()
-    bus_init()
 
     when TEST_ENABLE {
         test_all()
@@ -79,9 +86,8 @@ main :: proc() {
         cpu_disable_bootloader()
     }
 
-    bus_load_ROM(ROM_PATH)
-    sdl.SetWindowTitle(window, fmt.caprintf("odin-gb - %s", file_name))
     ui_sprite_create_all()
+    create_ui()
 
     step_length :f32= 1.0 / 60.0
     accumulated_time: f32
@@ -115,12 +121,12 @@ main :: proc() {
             ui_process()
             render_pre()
             render_set_shader()
-            if(redraw) {
+            if(redraw || pause) {
                 texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0], 2)
                 render_quad({
                     texture = UI_SPRITE_COUNT,
-                    position = {-160, -144},
-                    size = {320, 288},
+                    position = {-resolution.x / 2, -resolution.y / 2},
+                    size = {resolution.x, resolution.y},
                     scale = 1,
                     offset = {0, 0},
                     flip = {0, 0},
@@ -139,26 +145,6 @@ main :: proc() {
     }
 }
 
-draw_main :: proc(screen_buffer: []u16) {
-    render_pre()
-    render_set_shader()
-
-    texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0], 2)
-    render_quad({
-        texture = UI_SPRITE_COUNT,
-        position = {-160, -144},
-        size = {320, 288},
-        scale = 1,
-        offset = {0, 0},
-        flip = {0, 0},
-        color = {1, 1, 1, 1},
-    })
-    texture_destroy(UI_SPRITE_COUNT)
-    
-    ui_render()
-    render_post()
-}
-
 @(private="file")
 handle_events :: proc() {
     input_reset()
@@ -169,6 +155,12 @@ handle_events :: proc() {
             exit = true
         case sdl.EventType.WINDOW_CLOSE_REQUESTED:
             exit = true
+        case sdl.EventType.WINDOW_MOUSE_ENTER:
+            if(!pause) {
+                pause_btn.disabled = false
+            }
+        case sdl.EventType.WINDOW_MOUSE_LEAVE:
+            pause_btn.disabled = true
         case sdl.EventType.KEY_DOWN:
             handle_dbg_keys(&event)
         }
@@ -179,11 +171,67 @@ handle_events :: proc() {
 @(private="file")
 handle_dbg_keys :: proc(event: ^sdl.Event) {
     switch event.key.key {
-    case sdl.K_P:
-        pause = !pause
     case sdl.K_S:
         step = true
     case sdl.K_ESCAPE:
         exit = true
+    }
+}
+
+@(private="file")
+reset_all :: proc() {
+    ppu_reset()
+    apu_reset()
+    cpu_reset()
+    bus_reset()
+}
+
+@(private="file")
+create_ui :: proc() {
+    pause_btn = ui_button({0, 0}, {245, 245}, pause_game, .middle_center)
+    pause_btn.disabled = true
+    pause_btn.sprite = ui_sprites[2]
+    pause_btn.color = {1, 1, 1, 0.4}
+
+    load_btn = ui_button({0, 0}, {150, 40}, load_game, .middle_center)
+    ui_text({0, 0}, 16, "Load game", .middle_center, load_btn)
+
+    resume_btn = ui_button({0, 50}, {150, 40}, resume_game, .middle_center)
+    resume_btn.disabled = true
+    ui_text({0, 0}, 16, "Resume", .middle_center, resume_btn)
+}
+
+@(private="file")
+pause_game :: proc(button: ^Ui_element) {
+    pause = true
+    pause_btn.disabled = true
+    load_btn.disabled = false
+    resume_btn.disabled = false
+}
+
+@(private="file")
+resume_game :: proc(button: ^Ui_element) {
+    pause = false
+    pause_btn.disabled = false
+    load_btn.disabled = true
+    resume_btn.disabled = true
+}
+
+@(private="file")
+load_game :: proc(button: ^Ui_element) {
+    sdl.ShowOpenFileDialog(load_callback, nil, window, &bepa, 1, nil, false)
+}
+
+load_callback :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: i32) {
+    context = runtime.default_context()
+    game_path := string(filelist[0])
+    if(game_path != "") {
+        reset_all()
+        bus_load_ROM(game_path)
+        sdl.SetWindowTitle(window, fmt.caprintf("odin-gb - %s", file_name))
+        pause = false
+        load_btn.disabled = true
+        resume_btn.disabled = true
+        pause_btn.disabled = false
     }
 }
