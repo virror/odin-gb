@@ -16,6 +16,7 @@ WIN_SCALE :: 2
 
 Vector2f :: distinct [2]f32
 Vector3f :: distinct [3]f32
+Vector4f :: distinct [4]f32
 
 exit := false
 pause := true
@@ -42,6 +43,7 @@ main :: proc() {
     defer sdl.DestroyWindow(window)
     sdl.SetWindowPosition(window, 200, 200)
     render_init(window)
+    render_update_viewport(WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE)
 
     debug_window: ^sdl.Window
     if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_VULKAN, &debug_window, &debug_render)) {
@@ -79,6 +81,7 @@ main :: proc() {
 
     bus_load_ROM(ROM_PATH)
     sdl.SetWindowTitle(window, fmt.caprintf("odin-gb - %s", file_name))
+    ui_sprite_create_all()
 
     step_length :f32= 1.0 / 60.0
     accumulated_time: f32
@@ -90,7 +93,6 @@ main :: proc() {
         accumulated_time += f32(time - prev_time) / 1000.0
         prev_time = time
 
-        handle_events()
         if (!pause || step) && !redraw {
             cpu_step()
             redraw = ppu_step()
@@ -108,10 +110,28 @@ main :: proc() {
             last_pause = pause
         }
 
-        if ((accumulated_time > step_length) && redraw) {
-            draw_main(ppu_get_pixels())
+        if ((accumulated_time > step_length)) {
+            handle_events()
+            ui_process()
+            render_pre()
+            render_set_shader()
+            if(redraw) {
+                texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0], 2)
+                render_quad({
+                    texture = UI_SPRITE_COUNT,
+                    position = {-160, -144},
+                    size = {320, 288},
+                    scale = 1,
+                    offset = {0, 0},
+                    flip = {0, 0},
+                    color = {1, 1, 1, 1},
+                })
+                texture_destroy(UI_SPRITE_COUNT)
+            }
             redraw = false
             accumulated_time = 0
+            ui_render()
+            render_post()
         }
     }
     if(bus_has_battery()) {
@@ -120,16 +140,28 @@ main :: proc() {
 }
 
 draw_main :: proc(screen_buffer: []u16) {
-    texture := texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0])
     render_pre()
     render_set_shader()
-    render_quad()
+
+    texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0], 2)
+    render_quad({
+        texture = UI_SPRITE_COUNT,
+        position = {-160, -144},
+        size = {320, 288},
+        scale = 1,
+        offset = {0, 0},
+        flip = {0, 0},
+        color = {1, 1, 1, 1},
+    })
+    texture_destroy(UI_SPRITE_COUNT)
+    
+    ui_render()
     render_post()
-    texture_destroy(texture)
 }
 
 @(private="file")
 handle_events :: proc() {
+    input_reset()
     event: sdl.Event
     for sdl.PollEvent(&event) {
         #partial switch event.type {

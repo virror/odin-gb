@@ -28,8 +28,8 @@ struct main0_in
 vertex main0_out main0(main0_in in [[stage_in]], constant Stuff& stuff [[buffer(0)]])
 {
     main0_out out = {};
-    float width = (stuff.resolution.x / stuff.resolution.y) * 480.0;
-    out.gl_Position = ((stuff.model * float4(in.aPos, 0.0, 1.0)) - float4(stuff.cameraPos, 0.0, 0.0)) / float4(width / 2.0, 240.0, 1.0, 1.0);
+    out.gl_Position = ((stuff.model * float4(in.aPos, 0.0, 1.0)) - float4(stuff.cameraPos, 0.0, 0.0))
+        / float4(stuff.resolution.x / 2.0, stuff.resolution.y / 2, 1.0, 1.0);
     float2 tx = in.aTexCoord;
     if (stuff.flip.x == 1.0)
     {
