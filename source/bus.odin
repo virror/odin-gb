@@ -394,7 +394,7 @@ bus_has_battery :: proc() -> bool {
 
 bus_save_ram :: proc() {
     if(ramChanged) {
-        path := (filepath.dir("ROM_PATH"))
+        path := (filepath.dir(game_path))
         save_path := fmt.aprintf("%s/%s.sav", path, file_name)
         file, err := os.open(save_path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
         if(err == nil) {
@@ -409,7 +409,7 @@ bus_save_ram :: proc() {
 }
 
 bus_load_ram :: proc() {
-    path := (filepath.dir("ROM_PATH"))
+    path := (filepath.dir(game_path))
     load_path := fmt.aprintf("%s/%s.sav", path, file_name)
     file, err := os.open(load_path, os.O_RDONLY)
     if(err == nil) {

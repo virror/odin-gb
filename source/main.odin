@@ -40,6 +40,7 @@ load_btn: ^Ui_element
 resume_btn: ^Ui_element
 @(private="file")
 bepa: sdl.DialogFileFilter = {name = "Gameboy rom", pattern = "gb"}
+game_path: string
 
 main :: proc() {
     if(!sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMEPAD | sdl.INIT_AUDIO)) {
@@ -229,7 +230,7 @@ load_game :: proc(button: ^Ui_element) {
 
 load_callback :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: i32) {
     context = runtime.default_context()
-    game_path := string(filelist[0])
+    game_path = string(filelist[0])
     if(game_path != "") {
         reset_all()
         bus_load_ROM(game_path)
