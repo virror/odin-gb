@@ -9,7 +9,7 @@ import sdlimg "vendor:sdl3/image"
 
 DEBUG :: false
 SKIP_BIOS :: false
-SERIAL_DEBUG :: true
+SERIAL_DEBUG :: false
 
 WIN_WIDTH :: 160
 WIN_HEIGHT :: 144
@@ -88,10 +88,6 @@ main :: proc() {
         return
     }
 
-    when SKIP_BIOS {
-        cpu_disable_bootloader()
-    }
-
     ui_sprite_create_all()
     create_ui()
 
@@ -107,6 +103,7 @@ main :: proc() {
 
         if (!pause || step) && !redraw {
             cpu_step()
+            tmr_step()
             redraw = ppu_step()
             serial_step()
             apu_step()
@@ -190,6 +187,7 @@ reset_all :: proc() {
     apu_reset()
     cpu_reset()
     bus_reset()
+    tmr_reset()
 }
 
 @(private="file")
@@ -238,6 +236,8 @@ load_callback :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: i32) 
         pause = false
         load_btn.disabled = true
         resume_btn.disabled = true
-        pause_btn.disabled = false
+        when SKIP_BIOS {
+            cpu_disable_bootloader()
+        }
     }
 }

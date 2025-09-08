@@ -43,9 +43,6 @@ halt_bug: bool
 PC: u16
 SP: u16
 IME: bool
-dTimer: u16
-tTimer: u16
-tima_ovf: bool
 state: State
 operation: Operation
 irq_idx: int = -1
@@ -57,9 +54,6 @@ cpu_reset :: proc() {
     PC = 0
     SP = 0
     IME = false
-    dTimer = 0
-    tTimer = 0
-    tima_ovf = false
     state = {}
     operation = .Fetch
     irq_idx = -1
@@ -88,13 +82,7 @@ cpu_step :: proc() {
     state.cycle += 1
     if(state.cycle == state.op.cycles) {
         operation = .Fetch
-    }
-    when(!TEST_ENABLE) {
-        if(tima_ovf) {
-            cpu_tima_irq()
-        }
-        cpu_handle_tmr()
-        if(state.cycle == state.op.cycles) {
+        when(!TEST_ENABLE) {
             cpu_irq_check()
         }
     }
@@ -175,59 +163,6 @@ cpu_irq_do :: proc() {
         irq_idx = -1
         PC = 0x0040 + u16(i) * 0x8
     }
-}
-
-cpu_handle_tmr :: proc() {
-    //div timer
-    dTimer += 4
-    if(dTimer >= 256) {
-        dTimer -= 256
-        div := bus_get(IO_DIV)
-        div += 1
-        bus_set(IO_DIV, div)
-    }
-
-    //tima timer
-    tac := bus_get(IO_TAC)
-    if(bit_test(tac, 2)) {	//Timer enabled
-        tTimer += 4
-        tSpeed := tac & 0x03
-        compare :u16= 1024
-        switch (tSpeed)
-        {
-        case 0:
-            compare = 1024
-            break
-        case 1:
-            compare = 16
-            break
-        case 2:
-            compare = 64
-            break
-        case 3:
-            compare = 256
-            break
-        }
-        if(tTimer >= compare) {
-            tTimer -= compare
-            tima := u16(bus_get(IO_TIMA))
-            tima += 1
-            if(tima > 255) {
-                tima = 0
-                tima_ovf = true
-            }
-            bus_set(IO_TIMA, u8(tima))
-        }
-    }
-}
-
-cpu_tima_irq :: proc() {
-    tima := u16(bus_get(IO_TIMA))
-    tima = u16(bus_get(IO_TMA))
-    iFlags := IRQ(bus_get(IO_IF))
-    iFlags.Timer = true
-    bus_set(IO_IF, u8(iFlags)) //Set Timer interrupt flag
-    tima_ovf = false
 }
 
 cpu_setInterrupt :: proc(enabled: bool) {

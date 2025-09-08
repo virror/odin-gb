@@ -130,8 +130,8 @@ bus_read :: proc(address: u16) -> u8 {
             }
         case IO_SC:
             value = memory[address] | 0x7C
-        case IO_TMA:
-            value = memory[address] | 0xF8
+        case 0xFF04..=0xFF07:
+            value = tmr_read(address)
         case IO_STAT:
             value = memory[address] | 0x10
         case IO_IF:
@@ -178,15 +178,14 @@ bus_write :: proc(address: u16, data: u8) {
             break
         case IO_LY: //Read only
             break
-        case IO_DIV:
-            memory[address] = 0
-            break
         case IO_DMA:
             bus_dma_transfer(data)
             break
         case IO_BL:
             mem.copy(&memory[0], &romBanks[0], 0x4000)
             break
+        case 0xFF04..=0xFF07:
+            tmr_write(address, data)
         case 0xFF10..=0xFF26:
             apu_write(address, data)
             break
@@ -300,6 +299,8 @@ bus_bank_switch :: proc(address: u16, data: u8) {
 bus_rom_switch :: proc(address: u16, data: u8) {
     data := data
     #partial switch (mbc) {
+    case Mbc.None:
+        break
     case Mbc.MBC1,
          Mbc.MBC1_RAM,
          Mbc.MBC1_RAM_BAT:
