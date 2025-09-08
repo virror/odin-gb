@@ -7,6 +7,7 @@ import sdl "vendor:sdl3"
 import sdlttf "vendor:sdl3/ttf"
 import sdlimg "vendor:sdl3/image"
 
+DEBUG :: false
 SKIP_BIOS :: false
 SERIAL_DEBUG :: true
 
@@ -19,8 +20,11 @@ Vector3f :: distinct [3]f32
 Vector4f :: distinct [4]f32
 
 exit := false
+@(private="file")
 pause := true
+@(private="file")
 last_pause:= true
+@(private="file")
 redraw := false
 @(private="file")
 step := false
@@ -53,14 +57,15 @@ main :: proc() {
     render_init(window)
     render_update_viewport(WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE)
 
-    debug_window: ^sdl.Window
-    if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_VULKAN, &debug_window, &debug_render)) {
-        panic("Failed to create debug window")
+    when(DEBUG) {
+        debug_window: ^sdl.Window
+        if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_OPENGL, &debug_window, &debug_render)) {
+            panic("Failed to create debug window")
+        }
+        defer sdl.DestroyWindow(debug_window)
+        defer sdl.DestroyRenderer(debug_render)
+        sdl.SetWindowPosition(debug_window, 700, 100)
     }
-    defer sdl.DestroyWindow(debug_window)
-    defer sdl.DestroyRenderer(debug_render)
-    sdl.SetWindowPosition(debug_window, 700, 100)
-
     controller := controller_create()
     defer sdl.CloseGamepad(controller)
 
