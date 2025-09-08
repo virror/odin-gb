@@ -365,10 +365,10 @@ ppu_get_color :: proc(colorNum: u8, address: u16) -> u16 {
         res = 0xFFFF
         break
     case 1:
-        res = 0xA94A
+        res = 0xD6B5
         break
     case 2:
-        res = 0x94A5
+        res = 0xA94A
         break
     case 3:
         res = 0x8000
