@@ -118,9 +118,9 @@ ppu_step :: proc() -> bool {
         }
         break
     case .Draw:		// OAM + RAM
-        ppu_draw_scanline(lcdc, ly)
         if(scanlineCounter >= 240) {	// -> Mode 0 - H-blank
             status.mode = .HBlank
+            ppu_draw_scanline(lcdc, ly)
             iFlags.lcdc = status.hblank
         }
         break
@@ -254,7 +254,6 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
     yPos: u8
     backMem: u16
     window: bool
-    counter := u8(scanlineCounter - 80)
 
     tileData: u16
     if(lcdc.bg_tiles) {
@@ -269,9 +268,8 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         }
     }
 
-    for pixel :u8= 0; pixel < 4; pixel += 1 {
-        pixel2 := counter + pixel - 4
-        xPos := scx + pixel2
+    for pixel :u8= 0; pixel < 160; pixel += 1 {
+        xPos := scx + pixel
         yPos = scy + ly
         if(lcdc.bg_map) {
             backMem = 0x9C00
@@ -279,8 +277,8 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
             backMem = 0x9800
         }
         if(window) {
-            if(pixel2 + 7 >= wx) {
-                xPos = pixel2 + 7 - wx
+            if(pixel + 7 >= wx) {
+                xPos = pixel + 7 - wx
                 yPos = window_line
                 if(lcdc.window_map) {
                     backMem = 0x9C00
@@ -313,7 +311,7 @@ ppu_draw_background :: proc(lcdc: Llcd, ly: u8) {
         colorNum <<= 1
         colorNum |= bit_get(data1, u8(colorBit))
 
-        screenRow[pixel2] = colorNum
+        screenRow[pixel] = colorNum
     }
     if(window) {
         window_line += 1
