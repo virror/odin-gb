@@ -48,7 +48,9 @@ main :: proc() {
     }
     defer sdl.Quit()
 
-    sdlttf.Init()
+    if(!sdlttf.Init()) {
+        panic("Failed to init sdl3 ttf!")
+    }
     defer sdlttf.Quit()
     
     window = sdl.CreateWindow("odin-gb", WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE, sdl.WINDOW_VULKAN)
