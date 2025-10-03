@@ -5,7 +5,6 @@ import "core:fmt"
 import "base:runtime"
 import sdl "vendor:sdl3"
 import sdlttf "vendor:sdl3/ttf"
-import sdlimg "vendor:sdl3/image"
 
 DEBUG :: false
 SKIP_BIOS :: false
