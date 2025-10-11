@@ -5,6 +5,7 @@ import "core:fmt"
 import "base:runtime"
 import sdl "vendor:sdl3"
 import sdlttf "vendor:sdl3/ttf"
+import "../../odin-libs/emu"
 
 DEBUG :: false
 SKIP_BIOS :: false
@@ -15,14 +16,10 @@ WIN_HEIGHT :: 144
 WIN_SCALE :: 2
 
 Vector2f :: distinct [2]f32
-Vector3f :: distinct [3]f32
-Vector4f :: distinct [4]f32
 
 exit := false
 @(private="file")
 pause := true
-@(private="file")
-last_pause:= true
 @(private="file")
 redraw := false
 @(private="file")
@@ -32,14 +29,15 @@ window: ^sdl.Window
 debug_render: ^sdl.Renderer
 file_name: string
 @(private="file")
-pause_btn: ^Ui_element
+pause_btn: ^emu.Ui_element
 @(private="file")
-load_btn: ^Ui_element
+load_btn: ^emu.Ui_element
 @(private="file")
-resume_btn: ^Ui_element
+resume_btn: ^emu.Ui_element
 @(private="file")
 bepa: sdl.DialogFileFilter = {name = "Gameboy rom", pattern = "gb"}
 game_path: string
+resolution: emu.Vector2f
 
 main :: proc() {
     if(!sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMEPAD | sdl.INIT_AUDIO)) {
@@ -52,12 +50,13 @@ main :: proc() {
     }
     defer sdlttf.Quit()
     
-    window = sdl.CreateWindow("odin-gb", WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE, sdl.WINDOW_VULKAN)
+    resolution = {WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE}
+    window = sdl.CreateWindow("odin-gb", i32(resolution.x), i32(resolution.y), sdl.WINDOW_VULKAN)
     assert(window != nil, "Failed to create main window")
     defer sdl.DestroyWindow(window)
     sdl.SetWindowPosition(window, 200, 200)
-    render_init(window)
-    render_update_viewport(WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE)
+    emu.render_init(window)
+    emu.render_update_viewport(i32(resolution.x), i32(resolution.y))
 
     when(DEBUG) {
         debug_window: ^sdl.Window
@@ -89,7 +88,7 @@ main :: proc() {
         return
     }
 
-    ui_sprite_create_all()
+    emu.ui_sprite_create_all()
     create_ui()
 
     step_length :f32= 1.0 / 60.0
@@ -115,20 +114,16 @@ main :: proc() {
                 free_all(context.temp_allocator)
             }
         }
-        if pause != last_pause {
-            debug_draw()
-            last_pause = pause
-        }
 
         if ((accumulated_time > step_length)) {
             handle_events()
-            ui_process()
-            render_pre()
-            render_set_shader()
+            emu.ui_process()
+            emu.render_pre()
+            emu.render_set_shader()
             if(redraw || pause) {
-                texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0], 2)
-                render_quad({
-                    texture = UI_SPRITE_COUNT,
+                tex := emu.texture_create(WIN_WIDTH, WIN_HEIGHT, &screen_buffer[0], 2)
+                emu.render_quad({
+                    texture = tex,
                     position = {-resolution.x / 2, -resolution.y / 2},
                     size = {resolution.x, resolution.y},
                     scale = 1,
@@ -136,12 +131,12 @@ main :: proc() {
                     flip = {0, 0},
                     color = {1, 1, 1, 1},
                 })
-                texture_destroy(UI_SPRITE_COUNT)
+                emu.texture_destroy(tex)
             }
             redraw = false
             accumulated_time = 0
-            ui_render()
-            render_post()
+            emu.ui_render()
+            emu.render_post()
         }
     }
     if(bus_has_battery()) {
@@ -149,9 +144,19 @@ main :: proc() {
     }
 }
 
+pause_emu :: proc(do_pause: bool) {
+    pause = do_pause
+    if(!pause) {
+        //sdl.ResumeAudioStreamDevice(audio_stream)
+    } else {
+        //sdl.PauseAudioStreamDevice(audio_stream)
+        debug_draw()
+    }
+}
+
 @(private="file")
 handle_events :: proc() {
-    input_reset()
+    emu.input_reset()
     event: sdl.Event
     for sdl.PollEvent(&event) {
         #partial switch event.type {
@@ -193,37 +198,37 @@ reset_all :: proc() {
 
 @(private="file")
 create_ui :: proc() {
-    pause_btn = ui_button({0, 0}, {245, 245}, pause_game, .middle_center)
+    pause_btn = emu.ui_button({0, 0}, {245, 245}, pause_game, .middle_center)
     pause_btn.disabled = true
-    pause_btn.sprite = ui_sprites[2]
+    pause_btn.sprite = emu.ui_sprites[2]
     pause_btn.color = {1, 1, 1, 0.4}
 
-    load_btn = ui_button({0, 0}, {150, 40}, load_game, .middle_center)
-    ui_text({0, 0}, 16, "Load game", .middle_center, load_btn)
+    load_btn = emu.ui_button({0, 0}, {150, 40}, load_game, .middle_center)
+    emu.ui_text({0, 0}, 16, "Load game", .middle_center, load_btn)
 
-    resume_btn = ui_button({0, 50}, {150, 40}, resume_game, .middle_center)
+    resume_btn = emu.ui_button({0, 50}, {150, 40}, resume_game, .middle_center)
     resume_btn.disabled = true
-    ui_text({0, 0}, 16, "Resume", .middle_center, resume_btn)
+    emu.ui_text({0, 0}, 16, "Resume", .middle_center, resume_btn)
 }
 
 @(private="file")
-pause_game :: proc(button: ^Ui_element) {
-    pause = true
+pause_game :: proc(button: ^emu.Ui_element) {
+    pause_emu(true)
     pause_btn.disabled = true
     load_btn.disabled = false
     resume_btn.disabled = false
 }
 
 @(private="file")
-resume_game :: proc(button: ^Ui_element) {
-    pause = false
+resume_game :: proc(button: ^emu.Ui_element) {
+    pause_emu(false)
     pause_btn.disabled = false
     load_btn.disabled = true
     resume_btn.disabled = true
 }
 
 @(private="file")
-load_game :: proc(button: ^Ui_element) {
+load_game :: proc(button: ^emu.Ui_element) {
     sdl.ShowOpenFileDialog(load_callback, nil, window, &bepa, 1, nil, false)
 }
 
@@ -234,7 +239,7 @@ load_callback :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: i32) 
         reset_all()
         bus_load_ROM(game_path)
         sdl.SetWindowTitle(window, fmt.caprintf("odin-gb - %s", file_name))
-        pause = false
+        pause_emu(false)
         load_btn.disabled = true
         resume_btn.disabled = true
         when SKIP_BIOS {
