@@ -39,16 +39,17 @@ bepa: sdl.DialogFileFilter = {name = "Gameboy rom", pattern = "gb"}
 game_path: string
 resolution: emu.Vector2f
 
+when ODIN_OS == .Darwin {
+    WINDOW_TYPE :: sdl.WINDOW_METAL
+} else {
+    WINDOW_TYPE :: sdl.WINDOW_VULKAN
+}
+
 main :: proc() {
     if(!sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMEPAD | sdl.INIT_AUDIO)) {
         panic("Failed to init SDL3!")
     }
     defer sdl.Quit()
-
-    if(!sdlttf.Init()) {
-        panic("Failed to init sdl3 ttf!")
-    }
-    defer sdlttf.Quit()
     
     resolution = {WIN_WIDTH * WIN_SCALE, WIN_HEIGHT * WIN_SCALE}
     window = sdl.CreateWindow("odin-gb", i32(resolution.x), i32(resolution.y), sdl.WINDOW_VULKAN)
@@ -59,6 +60,11 @@ main :: proc() {
     emu.render_update_viewport(i32(resolution.x), i32(resolution.y))
 
     when(DEBUG) {
+        if(!sdlttf.Init()) {
+            panic("Failed to init sdl3 ttf!")
+        }
+        defer sdlttf.Quit()
+
         debug_window: ^sdl.Window
         if(!sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_OPENGL, &debug_window, &debug_render)) {
             panic("Failed to create debug window")
@@ -66,6 +72,9 @@ main :: proc() {
         defer sdl.DestroyWindow(debug_window)
         defer sdl.DestroyRenderer(debug_render)
         sdl.SetWindowPosition(debug_window, 700, 100)
+
+        debug_init()
+        defer debug_quit()
     }
     controller := controller_create()
     defer sdl.CloseGamepad(controller)
@@ -80,8 +89,6 @@ main :: proc() {
     device := sdl.OpenAudioDeviceStream(sdl.AUDIO_DEVICE_DEFAULT_PLAYBACK, &desired, nil, nil)
     defer sdl.ClearAudioStream(device)
     assert(device != nil, "Failed to create audio device") // TODO: Handle error
-
-    debug_init()
 
     when TEST_ENABLE {
         test_all()

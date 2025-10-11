@@ -3,7 +3,7 @@ package main
 import "core:fmt"
 import sdl "vendor:sdl3"
 import sdlttf "vendor:sdl3/ttf"
-
+when(DEBUG) {
 font: ^sdlttf.Font
 
 debug_init :: proc() {
@@ -63,9 +63,11 @@ debug_text :: proc(text: cstring, posX: f32, posY: f32, color: sdl.Color) {
     text_rect.y = posY
     text_rect.w = texW
     text_rect.h = texH
-    //sdl.RenderCopy(debug_render, texture, nil, &text_rect)
+
     sdl.RenderTexture(debug_render, texture, nil, &text_rect)
-    
     sdl.DestroySurface(surface)
     sdl.DestroyTexture(texture)
+}
+} else {
+    debug_draw :: proc() {}
 }
